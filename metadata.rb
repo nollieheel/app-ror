@@ -1,0 +1,7 @@
+name             'app-ror'
+maintainer       'Chromedia Far East, Inc.'
+maintainer_email 'sysadmin@chromedia.com'
+license          'All rights reserved'
+description      'Installs/Configures app-ror'
+long_description 'Installs/Configures app-ror'
+version          '0.1.0'

@@ -1,0 +1,21 @@
+---
+driver:
+  name: ec2
+  require_chef_omnibus: 13.8.5
+
+provisioner:
+  name: chef_zero
+
+platforms:
+  - name: ubuntu-14.04
+    driver:
+      image_id: ami-xxx
+    transport:
+      username: ubuntu
+      ssh_key: ~/.ssh/xxx.pem
+
+suites:
+  - name: default
+    run_list:
+      - recipe[app-ror::default]
+    attributes:
