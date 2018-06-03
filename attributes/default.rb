@@ -18,3 +18,26 @@
 # limitations under the License.
 #
 
+default['app-ror']['ruby']['apt_packages'] = %w{
+  curl zlib1g-dev libssl-dev libreadline-dev libyaml-dev
+  libxml2-dev libxslt1-dev libcurl4-openssl-dev
+  python-software-properties libffi-dev
+}
+
+default['app-ror']['solr']['apt_packages'] = %w{
+  openjdk-8-jdk openjdk-8-jre-headless
+}
+
+# Redis example settings for Upstart.
+# The resource app_ror_manage_sidekiq should then be called
+# with the property:
+#   upstart_starton 'redisexample'
+#default['redisio']['version'] = '4.0.9'
+#default['redisio']['job_control'] = 'upstart'
+#default['redisio']['servers'] = [ {
+#  'name'           => 'example',
+#  'address'        => '127.0.0.1',
+#  'port'           => '6379',
+#  'protected_mode' => 'yes',
+#  'keepalive'      => '600',
+#} ]

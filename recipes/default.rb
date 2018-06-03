@@ -18,3 +18,4 @@
 # limitations under the License.
 #
 
+# This cookbook has no recipes.

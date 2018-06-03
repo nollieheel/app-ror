@@ -1,0 +1,12 @@
+<% if @directory.is_a?(Array) -%>
+<%   @directory.each do |d| -%>
+<%= d %>
+<%   end -%>
+{
+<% else -%>
+<%= @directory %> {
+<% end -%>
+<% @directive.each do |c| -%>
+    <%= c %>
+<% end -%>
+}
