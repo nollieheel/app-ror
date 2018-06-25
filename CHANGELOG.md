@@ -1,3 +1,7 @@
+## 1.0.2 - 2018-06-25
+### Fixed
+- Forgot to update cookbook version in metadata.rb.
+
 ## 1.0.1 - 2018-06-22
 ### Added
 - Use Nodejs 8.x by default.
