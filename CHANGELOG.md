@@ -1,3 +1,10 @@
+## 1.0.1 - 2018-06-22
+### Added
+- Use Nodejs 8.x by default.
+
+### Removed
+- Remove boolean false as argument for app_ror_swap file property.
+
 ## 1.0.0 - 2018-06-20
 ### Added
 - First version of cookbook

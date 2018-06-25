@@ -28,6 +28,9 @@ default['app-ror']['solr']['apt_packages'] = %w{
   openjdk-8-jdk openjdk-8-jre-headless
 }
 
+# Use Node v8.x by default
+default['nodejs']['repo'] = 'https://deb.nodesource.com/node_8.x'
+
 # Redis example settings for Upstart.
 # The resource app_ror_manage_sidekiq should then be called
 # with the property:

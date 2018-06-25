@@ -23,7 +23,7 @@
 # TODO The guard here could be improved to check also if
 # swap is enabled in /etc/fstab or something.
 
-property :file, [String, false], name_property: true
+property :file, String, name_property: true
 property :size, String, default: '4G'
 
 action :create do
@@ -39,7 +39,7 @@ action :create do
         echo "#{new_resource.file} none swap sw 0 0" >> /etc/fstab
       fi
     EOF
-    only_if { new_resource.file && !::File.exist?(new_resource.file) }
+    not_if { ::File.exist?(new_resource.file) }
   end
 
 end
