@@ -1,5 +1,5 @@
 #
-# Author:: Earth U (<iskitingbords @ gmail.com>)
+# Author:: Earth U (<iskitingbords@gmail.com>)
 # Cookbook Name:: app-ror
 # Resource:: solr
 #

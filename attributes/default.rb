@@ -18,10 +18,10 @@
 # limitations under the License.
 #
 
+# Applies for Ubuntu 14.04 and 16.04:
 default['app-ror']['ruby']['apt_packages'] = %w{
   curl zlib1g-dev libssl-dev libreadline-dev libyaml-dev
-  libxml2-dev libxslt1-dev libcurl4-openssl-dev
-  python-software-properties libffi-dev
+  libxml2-dev libxslt1-dev libcurl4-openssl-dev libffi-dev
 }
 
 default['app-ror']['solr']['apt_packages'] = %w{
@@ -34,11 +34,15 @@ default['nodejs']['repo'] = 'https://deb.nodesource.com/node_8.x'
 # Redis example settings for Upstart.
 # The resource app_ror_manage_sidekiq should then be called
 # with the property:
-#   upstart_starton 'redisexample'
-#default['redisio']['version'] = '4.0.9'
-#default['redisio']['job_control'] = 'upstart'
+#   dependency { :upstart => 'redistest', :systemd => 'redis@test.service' }
+#default['redisio']['version'] = '4.0.11'
+#default['redisio']['job_control'] = if node['platform_version'].to_f >= 15.04
+#  'systemd'
+#else
+#  'upstart'
+#end
 #default['redisio']['servers'] = [ {
-#  'name'           => 'example',
+#  'name'           => 'test',
 #  'address'        => '127.0.0.1',
 #  'port'           => '6379',
 #  'protected_mode' => 'yes',

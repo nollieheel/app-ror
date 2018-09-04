@@ -1,5 +1,5 @@
 #
-# Author:: Earth U (<iskitingbords @ gmail.com>)
+# Author:: Earth U (<iskitingbords@gmail.com>)
 # Cookbook Name:: app-ror
 # Resource:: logrotate
 #
@@ -21,9 +21,8 @@
 # Add logrotate configuration for given directories.
 
 property :filename, String, name_property: true
-property :config, [Array, false], default: false
-property :directory, [String, Array, false], default: false
-property :directive, Array, default: %w{
+property :path, [String, Array, false], default: false
+property :config, Array, default: %w{
   weekly
   missingok
   rotate\ 12
@@ -32,36 +31,35 @@ property :directive, Array, default: %w{
   notifempty
   copytruncate
 }
+property :configs, [Array, false], default: false
 property :logrotate_d, String, default: '/etc/logrotate.d'
 
 action :create do
 
-  if ( new_resource.config && new_resource.config != [] )
+  if ( new_resource.configs.is_a?(Array) && new_resource.configs.length > 0 )
 
-    new_resource.config.each do |conf|
-      ds = conf.has_key?(:directive) ? conf[:directive] : new_resource.directive
-      template "#{new_resource.logrotate_d}/#{conf[:filename]}" do
+    new_resource.configs.each do |c|
+      config = c.has_key?(:config) ? c[:config] : new_resource.config
+      template "#{new_resource.logrotate_d}/#{c[:filename]}" do
         cookbook 'app-ror'
-        source 'logrotate.conf.erb'
+        source   'logrotate.conf.erb'
         variables(
-          :directory => conf[:directory],
-          :directive => ds
+          :path   => c[:path],
+          :config => config
         )
       end
     end
-  elsif new_resource.directory
+  elsif new_resource.path
 
     template "#{new_resource.logrotate_d}/#{new_resource.filename}" do
       cookbook 'app-ror'
-      source 'logrotate.conf.erb'
+      source   'logrotate.conf.erb'
       variables(
-        :directory => new_resource.directory,
-        :directive => new_resource.directive
+        :path   => new_resource.path,
+        :config => new_resource.config
       )
     end
   else
-
-    Chef::Application.fatal!("'config' or 'directory' value must be given")
+    Chef::Application.fatal!("'configs' or 'path' value must be given")
   end
-
 end

@@ -18,12 +18,12 @@
 description "manages the set of sidekiq processes"
 
 # This starts upon bootup (may depend on Redis) and stops on shutdown
-start on <%= @upstart_starton ? "started #{@upstart_starton}" : 'runlevel [2345]' %>
+start on <%= @dependency[:upstart] ? "started #{@dependency[:upstart]}" : 'runlevel [2345]' %>
 stop on runlevel [06]
 
 # Set this to the number of Sidekiq processes you want
 # to run on this machine
-env NUM_WORKERS=<%= @num_workers %>
+env NUM_WORKERS=<%= @workers %>
 
 pre-start script
   for i in `seq 1 ${NUM_WORKERS}`

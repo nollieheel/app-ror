@@ -1,5 +1,5 @@
 #
-# Author:: Earth U (<iskitingbords @ gmail.com>)
+# Author:: Earth U (<iskitingbords@gmail.com>)
 # Cookbook Name:: app-ror
 # Resource:: swap
 #
@@ -20,26 +20,35 @@
 
 # Add a swapfile.
 
-# TODO The guard here could be improved to check also if
-# swap is enabled in /etc/fstab or something.
-
 property :file, String, name_property: true
-property :size, String, default: '4G'
+property :size, [String, Integer], default: 4096
 
 action :create do
 
-  bash 'enable_swap' do
-    code <<-EOF.gsub(/^\s+/, '')
-      set -e 
-      if [[ ! -f #{new_resource.file} ]] ; then
-        fallocate -l #{new_resource.size} #{new_resource.file}
-        chmod 600 #{new_resource.file}
-        mkswap #{new_resource.file}
-        swapon #{new_resource.file}
-        echo "#{new_resource.file} none swap sw 0 0" >> /etc/fstab
-      fi
-    EOF
-    not_if { ::File.exist?(new_resource.file) }
-  end
+  if Chef::VERSION.to_f >= 14
+    log "This custom resource is deprecated in Chef 14. Use the built-in resource 'swap_file', instead." do
+      level :warn
+    end
 
+    swap_file new_resource.file do
+      persist true
+      size    new_resource.size
+    end
+
+  else
+    bash 'enable_swap' do
+      code <<-EOF.gsub(/^\s+/, '')
+        set -e
+        if [[ ! -f #{new_resource.file} ]] ; then
+          fallocate -l #{new_resource.size}M #{new_resource.file}
+          chmod 600 #{new_resource.file}
+          mkswap #{new_resource.file}
+          swapon #{new_resource.file}
+          echo "#{new_resource.file} none swap sw 0 0" >> /etc/fstab
+        fi
+      EOF
+      not_if { ::File.exist?(new_resource.file) }
+    end
+
+  end
 end

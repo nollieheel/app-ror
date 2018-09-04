@@ -1,3 +1,13 @@
+## 2.0.0 - 2018-10-17
+### Changed
+- BREAKING CHANGES to most resources!
+- Use ruby-build for Ruby installation.
+
+### Added
+- Add support for both Chef 13 and Chef 14.
+- Add support for Ubuntu >= 14.04, especially Systemd.
+- Add tests.
+
 ## 1.0.2 - 2018-06-25
 ### Fixed
 - Forgot to update cookbook version in metadata.rb.

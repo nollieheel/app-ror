@@ -1,5 +1,5 @@
 #
-# Author:: Earth U (<iskitingbords @ gmail.com>)
+# Author:: Earth U (<iskitingbords@gmail.com>)
 # Cookbook Name:: app-ror
 # Resource:: ruby
 #
@@ -18,93 +18,152 @@
 # limitations under the License.
 #
 
-# Install Ruby and some gems.
-# This whole thing is wrapped in a resource because of a ruby-2.5.0
-# bug (mentioned below). Until that bug is resolved, chef_rvm cookbook
-# cannot be used normally.
-
 property :version, String, name_property: true
 property :user, String, required: true
-property :gems, Array, default: []
+
+property :prefix, String, default: '/opt/ruby_build'
+property :install_repo, [String, false], default: false
+property :install_rev, [String, false], default: false
+
+property :bin_path, [String, false], default: false
+property :gem_home, [String, false], default: false
+property :gem_path, [String, false], default: false
+
+# etc_dir default value is: /home/{user}/.etc
+# export_env_file, if true, will write to {etc_dir}/ruby_env
+property :etc_dir, [String, false], default: false
+property :export_env_file, [true, false], default: true
 
 property :apt_packages, Array, default: lazy { node['app-ror']['ruby']['apt_packages'] }
-property :rvm_gpg, String, default: 'D39DC0E3'
+property :gems, Array, default: []
 
-property :lsb_codename, String, default: node['lsb']['codename']
+property :install_git, [true, false], default: true
+property :install_yarn, [true, false], default: true
+property :install_nodejs, [true, false], default: true
 property :git_ppa, String, default: 'ppa:git-core/ppa'
 
 action :install do
 
-  # chef_rvm needs this, but has to be done
-  # before 'nodejs' or 'yarn'
-  execute 'add_gpg_key' do
-    command "gpg -k #{new_resource.rvm_gpg} || "\
-            "gpg --keyserver hkp://keys.gnupg.net "\
-            "--recv-keys #{new_resource.rvm_gpg}"
-    user    new_resource.user
+  # Calculate defaults
+
+  bin_path = if new_resource.bin_path
+    new_resource.bin_path
+  else
+    "#{new_resource.prefix}/builds/#{new_resource.version}/bin"
   end
 
-  apt_repository 'git' do
-    uri          new_resource.git_ppa
-    distribution new_resource.lsb_codename
+  gem_home = if new_resource.gem_home
+    new_resource.gem_home
+  else
+    "/home/#{new_resource.user}/.gem/ruby/#{new_resource.version}"
   end
 
-  run_context.include_recipe 'git'
-  run_context.include_recipe 'nodejs'
-  run_context.include_recipe 'yarn'
+  arg_gem_path = if new_resource.gem_path
+    new_resource.gem_path
+  else
+    "#{new_resource.prefix}/builds/#{new_resource.version}/lib/ruby/gems/#{new_resource.version}"
+  end
+  #gem_path = ([ gem_home ] + arg_gem_path.split(':')).map(&:downcase).uniq.join(':')
+  gem_path = ([ gem_home ] + arg_gem_path.split(':')).uniq.join(':')
+
+  etc_dir = if new_resource.etc_dir
+    new_resource.etc_dir
+  else
+    "/home/#{new_resource.user}/.etc"
+  end
+
+  # Begin process
+
+  apt_update
+  if Chef::VERSION.to_f >= 14
+    build_essential
+  else
+    package 'build-essential'
+  end
+
+  if new_resource.install_git
+    apt_repository 'git' do
+      uri          new_resource.git_ppa
+      distribution node['lsb']['codename']
+    end
+    run_context.include_recipe 'git'
+  end
+
+  if new_resource.install_nodejs
+    run_context.include_recipe 'nodejs'
+  end
+
+  if new_resource.install_yarn
+    run_context.include_recipe 'yarn'
+  end
 
   package new_resource.apt_packages
 
-  # Unresolved ruby-2.5.0 bug:
-  #   https://github.com/travis-ci/travis-ci/issues/8969
-  #
-  # The temporary workaround is to `rvm reinstall --disable-binary`.
-  # Adding `--disable-binary` to `rvm install` the first time through
-  # does not work.
-  run_context.include_recipe 'chef_rvm::rvm'
-  run_context.include_recipe 'chef_rvm::rubies'
-
-  chef_rvm new_resource.user
-
-  chef_rvm_ruby "#{new_resource.user}:#{new_resource.version}" do
-    user    new_resource.user
-    version new_resource.version
+  directory etc_dir do
+    owner     new_resource.user
+    recursive true
   end
 
-  rdir = "/home/#{new_resource.user}/.rvm"
-  rver = "ruby-#{new_resource.version}"
-
-  execute "reinstall_#{rver}" do
-    command "rvm reinstall #{new_resource.version} --disable-binary"
-    user    new_resource.user
-    not_if  'which gem && gem -v'
-    environment(
-      'HOME'         => "/home/#{new_resource.user}",
-      'GEM_HOME'     => "#{rdir}/gems/#{rver}",
-      'GEM_PATH'     => "#{rdir}/gems/#{rver}:#{rdir}/gems/#{rver}@global",
-      'MY_RUBY_HOME' => "#{rdir}/rubies/#{rver}",
-      'rvm_bin_path' => "#{rdir}/bin",
-      'rvm_path'     => rdir,
-      'rvm_prefix'   => "/home/#{new_resource.user}",
-      'PATH'         => "#{rdir}/gems/#{rver}/bin:"\
-        "#{rdir}/gems/#{rver}@global/bin:"\
-        "#{rdir}/rubies/#{rver}/bin:/usr/local/sbin:/usr/local/bin:"\
-        "/usr/sbin:/usr/bin:/sbin:/bin:#{rdir}/bin:#{rdir}/bin"
-    )
+  opts = { prefix: new_resource.prefix }
+  if new_resource.install_repo
+    opts[:install_repo] = new_resource.install_repo
   end
-
-  run_context.include_recipe 'chef_rvm::gemsets'
-  run_context.include_recipe 'chef_rvm::gems'
-  run_context.include_recipe 'chef_rvm::wrappers'
-  run_context.include_recipe 'chef_rvm::aliases'
+  if new_resource.install_rev
+    opts[:install_rev] = new_resource.install_rev
+  end
+  ruby_runtime new_resource.version do
+    provider :ruby_build
+    options  opts
+  end
 
   new_resource.gems.each do |g|
-    chef_rvm_gem "install_#{g[:gem]}" do
-      gem         g[:gem]
-      version     g[:version]
-      user        new_resource.user
-      ruby_string "#{new_resource.version}@default"
+    if g.is_a?(String)
+      ruby_gem g
+    else
+      ruby_gem g[:gem] do
+        version g[:version]
+      end
     end
   end
 
+  bashrc_mark = "#{etc_dir}/.bashrc-updated"
+  execute 'update_bashrc' do
+    command <<~EOT
+      echo 'export PATH="#{bin_path}:${PATH}"
+      export GEM_HOME="#{gem_home}"
+      export GEM_PATH="#{gem_path}"' >> /home/#{new_resource.user}/.bashrc
+    EOT
+    notifies :create, "file[#{bashrc_mark}]", :immediately
+    not_if { ::File.exist?(bashrc_mark) }
+  end
+
+  file bashrc_mark do
+    action :nothing
+    content ( %x( date ) ).to_s
+  end
+
+  gemrc_mark = "#{etc_dir}/.gemrc-updated"
+  execute 'update_gemrc' do
+    command <<~EOT
+      echo 'gem: --no-document' >> /home/#{new_resource.user}/.gemrc
+    EOT
+    notifies :create, "file[#{gemrc_mark}]", :immediately
+    not_if { ::File.exist?(gemrc_mark) }
+  end
+
+  file gemrc_mark do
+    action :nothing
+    content ( %x( date ) ).to_s
+  end
+
+  if new_resource.export_env_file
+    file "#{etc_dir}/ruby_env" do
+      content <<~EOT
+        PATH=#{bin_path}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+        GEM_HOME=#{gem_home}
+        GEM_PATH=#{gem_path}
+      EOT
+      owner new_resource.user
+    end
+  end
 end

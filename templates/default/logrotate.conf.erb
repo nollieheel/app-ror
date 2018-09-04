@@ -1,12 +1,12 @@
-<% if @directory.is_a?(Array) -%>
-<%   @directory.each do |d| -%>
-<%= d %>
+<% if @path.is_a?(Array) -%>
+<%   @path.each do |p| -%>
+<%= p %>
 <%   end -%>
 {
 <% else -%>
-<%= @directory %> {
+<%= @path %> {
 <% end -%>
-<% @directive.each do |c| -%>
+<% @config.each do |c| -%>
     <%= c %>
 <% end -%>
 }

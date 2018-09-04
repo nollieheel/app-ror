@@ -1,5 +1,5 @@
 #
-# Author:: Earth U (<iskitingbords @ gmail.com>)
+# Author:: Earth U (<iskitingbords@gmail.com>)
 # Cookbook Name:: app-ror
 # Resource:: base_dirs
 #
@@ -21,29 +21,32 @@
 # Just set up the base directories needed.
 
 property :base_dir, String, name_property: true
-property :shared, String, default: 'shared'
+property :sub_dirs, [String, Array], default: 'shared'
 property :owner, String, default: 'ubuntu'
 property :group, [String, false], default: false
+
+action_class do
+  def create_dir(loc, own, gro)
+    directory loc do
+      recursive true
+      owner     own
+      group     gro
+    end
+  end
+end
 
 action :create do
 
   gr = new_resource.group ? new_resource.group : new_resource.owner
-  sh = if new_resource.shared.start_with?('/')
-    new_resource.shared
+
+  create_dir(new_resource.base_dir, new_resource.owner, gr)
+
+  if new_resource.sub_dirs.is_a?(Array)
+    new_resource.sub_dirs.each do |sub_dir|
+      create_dir("#{new_resource.base_dir}/#{sub_dir}", new_resource.owner, gr)
+    end
   else
-    "#{new_resource.base_dir}/#{new_resource.shared}"
-  end
-
-  directory new_resource.base_dir do
-    recursive true
-    owner new_resource.owner
-    group gr
-  end
-
-  directory sh do
-    recursive true
-    owner new_resource.owner
-    group gr
+    create_dir("#{new_resource.base_dir}/#{new_resource.sub_dirs}", new_resource.owner, gr)
   end
 
 end

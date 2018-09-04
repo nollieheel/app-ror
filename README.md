@@ -4,7 +4,7 @@ Some cookbook resources to ease setup of Ruby-on-Rails apps.
 
 ## Supported Platforms
 
-Ubuntu 14.04
+Ubuntu >= 14.04
 
 ## Attributes
 
@@ -33,11 +33,11 @@ Ubuntu 14.04
 
 ### app_ror_swap
 
-Create a swap file and enable it.
+Create a swap file and enable it. _Deprecated in Chef 14 (use built-in resource 'swap\_file', instead)._
 
 ```ruby
 app_ror_swap '/swapfile' do
-  size '4G'
+  size 1024
 end
 ```
 
@@ -48,15 +48,16 @@ end
 #### Properties:
 
 - `file` - Name of swapfile. Defaults to name of resource.
-- `size` - (optional) Size of swapfile. Defaults to `'4G'`.
+- `size` - Size of swap in MB. Defaults to `4096`.
 
 ### app_ror_base_dirs
 
-Simply create the skeleton directory for your project.
+Simply create directories.
 
 ```ruby
 app_ror_base_dirs '/var/src/myapp' do
   owner 'john'
+  sub_dirs ['shared', 'shared/config']
 end
 ```
 
@@ -69,7 +70,7 @@ end
 - `base_dir` - The directory path. Defaults to name of resource.
 - `owner` - Owner of directories.
 - `group` - Group name of directories. Defaults to owner name.
-- `shared` - (optional) The "shared" directory within your project. Defaults to `'shared'`.
+- `sub_dirs` - Relative subdirectory/ies that should also be created. Can be given as an Array. Defaults to `'shared'`.
 
 ### app_ror_logrotate
 
@@ -88,8 +89,8 @@ end
 #### Properties
 
 - `filename` - File name of config. Defaults to name of resource.
-- `directory` - Path to be logrotated. Can also be an Array.
-- `directive` - Logrotate directives. Defaults to:
+- `path` - Path to be logrotated. Can also be an Array.
+- `config` - Logrotate directives. Defaults to:
 ```
 weekly
 missingok
@@ -99,17 +100,18 @@ delaycompress
 notifempty
 copytruncate
 ```
-- `config` - If multiple configs are desired, `directory` and `directive` can be ommitted. Instead, use this property and pass an Array of Hashes, each with their own `:filename`, `:directory`, and `:directive` keys. Example:
+- `configs` - If multiple configs are desired, `path` and `config` can be ommitted. Instead, use this property and pass an Array of Hashes, each with their own `:filename`, `:path`, and `:config` keys. Example:
 ```
 app_ror_logrotate 'foo' do
-  config([
+  configs([
     {
       :filename => 'myapp',
-      :directory => ['/var/src/myapp/shared/log/*.log', '/var/src/myapp/logs/*']
+      :path => ['/var/src/myapp/shared/log/*.log', '/var/src/myapp/logs/*']
     },
     {
       :filename => 'anotherapp',
-      :directory => '/var/src/anotherapp/logs/*.log'
+      :path => '/var/src/anotherapp/logs/*.log',
+      :config => [ 'weekly', 'notifempty' ]
     }
   ])
 end
@@ -117,11 +119,12 @@ end
 
 ### app_ror_ruby
 
-Install Ruby using RVM.
+Install Ruby using [Ruby-build](https://github.com/rbenv/ruby-build).
 
 ```ruby
-app_ror_ruby '2.5.0' do
+app_ror_ruby '2.5.1' do
   user 'john'
+  gem_path '/opt/ruby_build/builds/2.5.1/lib/ruby/gems/2.5.0'
   gems([
     { :gem => 'rails', :version => '5.1.6' },
     { :gem => 'sidekiq', :version => '5.1.3' }
@@ -137,12 +140,25 @@ end
 
 - `version` - Ruby version. Defaults to name of resource.
 - `user` - Main user assigned to this installation.
-- `gems` - Gems to be installed, if desired. This is a hash of gem names and versions.
-- `apt_packages` - (optional) Dependent packages for Ruby. Defaults to `node['app-ror']['ruby']['apt_packages']`.
+- `bin_path` - Location of Ruby installation binaries. Default: `{prefix}/builds/{version}/bin`.
+- `gem_home` - Default: `/home/{user}/.gem/ruby/{version}`.
+- `gem_path` - Default: `{prefix}/builds/{version}/lib/ruby/gems/{version}`. The actual resolved `GEM_PATH` will always also include `GEM_HOME`, so there is no need to include it here. _Note: Always verify this path, especially for new Ruby patch versions, which don't seem to follow this default path naming scheme._
+- `gems` - Gems to be installed, if desired. This is an array of either strings for gem names, or hashes for gem names and versions.
+- `apt_packages` - (optional) Dependent OS packages for Ruby. Defaults to `node['app-ror']['ruby']['apt_packages']`.
+- `install_git` - Whether to include installation of Git. Default: true.
+- `install_yarn` - Whether to include installation of Yarn. Default: true.
+- `install_nodejs` - Whether to include installation of NodeJS. Default: true.
+- `export_env_file` - If true, values for the environment variables `PATH`, `GEM_HOME`, and `GEM_PATH` will be exported into a file located at `/home/{user}/.etc/ruby_env`. Useful for automating user-specific Ruby commands. Default: true.
+
+#### Properties Wrapped From [Poise-Ruby-Build](https://github.com/poise/poise-ruby-build) Cookbook
+
+- `prefix` - Installation location. Default: `/opt/ruby_build`.
+- `install_repo` - Git URI to clone. Default: `https://github.com/sstephenson/ruby-build.git`.
+- `install_rev` - Git revision to clone. Default: `master`.
 
 ### app_ror_solr
 
-Installs Solr according to their [official guide](https://lucene.apache.org/solr/guide/6_6/taking-solr-to-production.html#taking-solr-to-production).
+Installs Solr according to the [official guide](https://lucene.apache.org/solr/guide/6_6/taking-solr-to-production.html#taking-solr-to-production).
 
 ```ruby
 app_ror_solr '6.6.4' do
@@ -176,7 +192,7 @@ end
 
 ### app_ror_manage_puma
 
-Set up Upstart scripts for Puma, taken from this [guide](https://github.com/puma/puma/tree/master/tools/jungle/upstart).
+Set up Upstart scripts for Puma, taken from this [guide](https://github.com/puma/puma/tree/master/tools/jungle/upstart). Systemd is also supported.
 
 ```ruby
 app_ror_manage_puma '/var/src/myapp/current' do
@@ -186,23 +202,27 @@ end
 
 #### Actions
 
-- `install` - Install the Upstart scripts (default)
+- `install` - Install and enable the Upstart/Systemd scripts (default)
 
 #### Properties
 
-- `roots` - Root path/s of Rails apps. Can also be given as Array. Defaults to name of resource.
-- `project_conf_path` - Path of Puma config file to be used for each root. Defaults to `../../shared/puma.rb`.
+- `app_dir` - Root path of Rails app. Defaults to name of resource.
+- `conf_path` - Path of Puma config file. Defaults to `../../shared/puma.rb`.
 - `user` - User to run Puma.
 - `group` - Group name of user. Defaults to name of user.
+- `env_file` - File containing OS env variables needed for Puma to run. Useful if not using Ruby management tools (rbenv, chruby, etc.). Defaults to: `/home/{user}/.etc/ruby_env`.
+- `puma_source` - For providing a custom template.
+- `puma_cookbook` - For providing a custom template.
 
 ### app_ror_manage_sidekiq
 
-Set up Upstart scripts for Sidekiq, taken from this [guide](https://github.com/mperham/sidekiq/tree/v5.1.3/examples/upstart).
+Set up Upstart scripts for Sidekiq, taken from this [guide](https://github.com/mperham/sidekiq/tree/v5.1.3/examples/upstart). Systemd is also supported.
 
 ```ruby
 app_ror_manage_sidekiq '/var/src/myapp' do
   user 'john'
-  upstart_starton 'rc'
+  environment 'staging'
+  dependency({ :systemd => 'redis@test.service' })
 end
 ```
 
@@ -213,15 +233,17 @@ end
 #### Properties
 
 - `base_dir` - The main (parent) directory of the project. Defaults to name of resource.
-- `dir_app` - Location of project. Can be absolute path, or relative to `base_dir`. Defaults to: `current`.
-- `dir_log` - Directory where Sidekiq logs are to be stored. Can be absolute path, or relative to `base_dir`. Defaults to: `shared/log`.
-- `dir_pidfile` - Directory where Sidekiq writes the pidfile. Can be absolute path, or relative to `base_dir`. Defaults to: `shared/tmp/logs`.
-- `path_config` - Location of Sidekiq config file. Can be absolute path, or relative to `base_dir`. Defaults to: `current/config/sidekiq.yml`.
+- `app_dir` - Location of project. Can be absolute path, or relative to `base_dir`. Defaults to: `current`.
+- `log_dir` - Directory where Sidekiq logs are to be stored. Can be absolute path, or relative to `base_dir`. Defaults to: `shared/log`.
+- `pidfile_dir` - Directory where Sidekiq writes the pidfile. Can be absolute path, or relative to `base_dir`. Defaults to: `shared/tmp/pids`.
+- `conf_path` - Location of Sidekiq config file. Can be absolute path, or relative to `base_dir`. Defaults to: `current/config/sidekiq.yml`.
+- `environment` - Sidekiq Ruby environment. Default: `production`.
+- `workers` - Number of desired Sidekiq workers. Defaults to 1.
 - `user` - User to run Sidekiq.
 - `group` - Group name of user. Defaults to name of user.
-- `num_workers` - Number of desired Sidekiq workers. Defaults to 1.
-- `upstart_starton` - Specify here the name of the dependent upstart service for Sidekiq (e.g. redis6379). Defaults to false for no dependency.
+- `dependency` - Specify here the name of the dependent upstart/systemd service for Sidekiq (e.g. local Redis service). Defaults to: `{ :upstart => false, :systemd => false }` indicating no dependency.
+- `env_file` - File containing OS env variables needed for Sidekiq to run. Useful if not using Ruby management tools (rbenv, chruby, etc.). Defaults to: `/home/{user}/.etc/ruby_env`.
 
 ## License and Authors
 
-Author:: Earth U (<iskitingbords @ gmail.com>)
+Author:: Earth U (<iskitingbords@gmail.com>)

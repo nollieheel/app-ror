@@ -24,49 +24,86 @@
 # Project properties
 property :base_dir, String, name_property: true
 property :environment, String, default: 'production'
-property :dir_app, String, default: 'current'
-property :dir_log, String, default: 'shared/log'
-property :dir_pidfile, String, default: 'shared/tmp/pids'
-property :path_config, String, default: 'current/config/sidekiq.yml'
+property :app_dir, String, default: 'current'
+property :log_dir, String, default: 'shared/log'
+property :pidfile_dir, String, default: 'shared/tmp/pids'
+property :conf_path, String, default: 'current/config/sidekiq.yml'
+property :workers, [String, Integer], default: 1
 
 # App properties
 property :user, String, required: true
 property :group, [String, false], default: false
-property :num_workers, [String, Integer], default: 1
-property :upstart_starton, [String, false], default: false
+property :env_file, [String, false], default: false
+property :dependency, Hash, default: { :upstart => false, :systemd => false }
 
-property :sidekiq_name, String, default: 'sidekiq.conf'
-property :sidekiq_source, String, default: 'sidekiq.conf.erb'
+property :sidekiq_source, [String, false], default: false
 property :sidekiq_cookbook, String, default: 'app-ror'
-property :workers_name, String, default: 'workers.conf'
+# Only on Upstart:
 property :workers_source, String, default: 'workers.conf.erb'
 property :workers_cookbook, String, default: 'app-ror'
 
 action :install do
-
-  template "/etc/init/#{new_resource.workers_name}" do
-    source new_resource.workers_source
-    cookbook new_resource.workers_cookbook
-    variables(
-      :upstart_starton => new_resource.upstart_starton,
-      :num_workers     => new_resource.num_workers,
-    )
+  if not node['platform'] == 'ubuntu'
+    Chef::Application.fatal!("#{node['platform']} is not supported")
   end
 
+  env_file = new_resource.env_file ? new_resource.env_file : "/home/#{new_resource.user}/.etc/ruby_env"
   group = new_resource.group ? new_resource.group : new_resource.user
-  template "/etc/init/#{new_resource.sidekiq_name}" do
-    source new_resource.sidekiq_source
-    cookbook new_resource.sidekiq_cookbook
-    variables(
-      :user        => new_resource.user,
-      :group       => group,
-      :environment => new_resource.environment,
-      :base_dir    => new_resource.base_dir,
-      :dir_app     => new_resource.dir_app,
-      :dir_log     => new_resource.dir_log,
-      :dir_pidfile => new_resource.dir_pidfile,
-      :path_config => new_resource.path_config,
-    )
-  end
 
+  if node['platform_version'].to_f >= 15.04
+
+    sidekiq_source = new_resource.sidekiq_source ? new_resource.sidekiq_source : 'sidekiq.service.erb'
+    template '/etc/systemd/system/sidekiq@.service' do
+      source   sidekiq_source
+      cookbook new_resource.sidekiq_cookbook
+      variables(
+        :user        => new_resource.user,
+        :group       => group,
+        :env_file    => env_file,
+        :dependency  => new_resource.dependency,
+        :environment => new_resource.environment,
+        :base_dir    => new_resource.base_dir,
+        :app_dir     => new_resource.app_dir,
+        :log_dir     => new_resource.log_dir,
+        :pidfile_dir => new_resource.pidfile_dir,
+        :conf_path   => new_resource.conf_path,
+      )
+    end
+
+    new_resource.workers.times do |i|
+      execute "enable_sidekiq_#{i}_service" do
+        command "systemctl enable sidekiq@#{i}.service"
+      end
+    end
+
+  elsif node['platform_version'].to_f >= 12.04
+
+    template '/etc/init/workers.conf' do
+      source   new_resource.workers_source
+      cookbook new_resource.workers_cookbook
+      variables(
+        :dependency => new_resource.dependency,
+        :workers    => new_resource.workers,
+      )
+    end
+
+    sidekiq_source = new_resource.sidekiq_source ? new_resource.sidekiq_source : 'sidekiq.conf.erb'
+    template '/etc/init/sidekiq.conf' do
+      source   sidekiq_source
+      cookbook new_resource.sidekiq_cookbook
+      variables(
+        :user        => new_resource.user,
+        :group       => group,
+        :env_file    => env_file,
+        :environment => new_resource.environment,
+        :base_dir    => new_resource.base_dir,
+        :app_dir     => new_resource.app_dir,
+        :log_dir     => new_resource.log_dir,
+        :pidfile_dir => new_resource.pidfile_dir,
+        :conf_path   => new_resource.conf_path,
+      )
+    end
+  else
+    Chef::Application.fatal!("Version #{node['platform_version']} is not supported")
+  end
 end

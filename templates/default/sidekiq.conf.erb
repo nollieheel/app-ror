@@ -72,15 +72,24 @@ exec /bin/bash <<'EOT'
     fi
     # if you aren't using auto, set your version here
     # chruby 2.0.0
+  #
+  # Using a global Ruby install with env variables
+  # listed in <%= @env_file %>
+  elif [ -f "<%= @env_file %>" ]; then
+    while IFS="" read -r p || [ -n "$p" ]; do
+      if ( echo "$p" | grep -vq '^#' ); then
+        eval export "$p";
+      fi
+    done < "<%= @env_file %>"
   fi
 
   environment=<%= @environment %>
-  dir_app=<%= @dir_app.start_with?('/') ? @dir_app : "#{@base_dir}/#{@dir_app}" %>
-  dir_log=<%= @dir_log.start_with?('/') ? @dir_log : "#{@base_dir}/#{@dir_log}" %>
-  dir_pidfile=<%= @dir_pidfile.start_with?('/') ? @dir_pidfile : "#{@base_dir}/#{@dir_pidfile}" %>
-  path_config=<%= @path_config.start_with?('/') ? @path_config : "#{@base_dir}/#{@path_config}" %>
+  app_dir=<%= @app_dir.start_with?('/') ? @app_dir : "#{@base_dir}/#{@app_dir}" %>
+  log_dir=<%= @log_dir.start_with?('/') ? @log_dir : "#{@base_dir}/#{@log_dir}" %>
+  pidfile_dir=<%= @pidfile_dir.start_with?('/') ? @pidfile_dir : "#{@base_dir}/#{@pidfile_dir}" %>
+  conf_path=<%= @conf_path.start_with?('/') ? @conf_path : "#{@base_dir}/#{@conf_path}" %>
 
-  cd "$dir_app"
-  exec bundle exec sidekiq --index ${index} --environment "$environment" --config "$path_config" --pidfile "${dir_pidfile}/sidekiq-${index}.pid" --logfile "${dir_log}/sidekiq-${index}.log"
+  cd "$app_dir"
+  exec bundle exec sidekiq --index ${index} --environment "$environment" --config "$conf_path" --pidfile "${pidfile_dir}/sidekiq-${index}.pid" --logfile "${log_dir}/sidekiq.log"
 EOT
 end script
