@@ -78,7 +78,7 @@ Add some logrotate configurations.
 
 ```ruby
 app_ror_logrotate 'myapp' do
-  directory '/var/src/myapp/shared/log/*.log'
+  path '/var/src/myapp/shared/log/*.log'
 end
 ```
 
@@ -243,6 +243,10 @@ end
 - `group` - Group name of user. Defaults to name of user.
 - `dependency` - Specify here the name of the dependent upstart/systemd service for Sidekiq (e.g. local Redis service). Defaults to: `{ :upstart => false, :systemd => false }` indicating no dependency.
 - `env_file` - File containing OS env variables needed for Sidekiq to run. Useful if not using Ruby management tools (rbenv, chruby, etc.). Defaults to: `/home/{user}/.etc/ruby_env`.
+- `sidekiq_source` - For providing a custom template.
+- `sidekiq_cookbook` - For providing a custom template.
+- `workers_source` - (Upstart only) For providing a custom template for worker manager.
+- `workers_cookbook` - (Upstart only) For providing a custom template for worker manager.
 
 ## License and Authors
 
