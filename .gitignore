@@ -20,3 +20,5 @@ bin/*
 .kitchen.local.yml
 .chef
 data_bags
+recipes/test.rb
+attributes/test.rb
