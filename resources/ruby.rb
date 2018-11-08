@@ -19,6 +19,7 @@
 #
 
 property :version, String, name_property: true
+property :bundler_version, [String, false], default: false
 property :user, String, required: true
 
 property :prefix, String, default: '/opt/ruby_build'
@@ -28,11 +29,12 @@ property :install_rev, [String, false], default: false
 property :bin_path, [String, false], default: false
 property :gem_home, [String, false], default: false
 property :gem_path, [String, false], default: false
+property :ruby_env, Hash, default: {}
 
 # etc_dir default value is: /home/{user}/.etc
-# export_env_file, if true, will write to {etc_dir}/ruby_env
+# export_ruby_env, if true, will write to {etc_dir}/ruby_env
 property :etc_dir, [String, false], default: false
-property :export_env_file, [true, false], default: true
+property :export_ruby_env, [true, false], default: true
 
 property :apt_packages, Array, default: lazy { node['app-ror']['ruby']['apt_packages'] }
 property :gems, Array, default: []
@@ -46,6 +48,8 @@ action :install do
 
   # Calculate defaults
 
+  user_home = "/home/#{new_resource.user}"
+
   bin_path = if new_resource.bin_path
     new_resource.bin_path
   else
@@ -55,7 +59,7 @@ action :install do
   gem_home = if new_resource.gem_home
     new_resource.gem_home
   else
-    "/home/#{new_resource.user}/.gem/ruby/#{new_resource.version}"
+    "#{user_home}/.gem/ruby/#{new_resource.version}"
   end
 
   arg_gem_path = if new_resource.gem_path
@@ -63,16 +67,20 @@ action :install do
   else
     "#{new_resource.prefix}/builds/#{new_resource.version}/lib/ruby/gems/#{new_resource.version}"
   end
-  #gem_path = ([ gem_home ] + arg_gem_path.split(':')).map(&:downcase).uniq.join(':')
   gem_path = ([ gem_home ] + arg_gem_path.split(':')).uniq.join(':')
+
+  ruby_env = {
+    'GEM_HOME' => gem_home,
+    'GEM_PATH' => gem_path
+  }.merge(new_resource.ruby_env)
 
   etc_dir = if new_resource.etc_dir
     new_resource.etc_dir
   else
-    "/home/#{new_resource.user}/.etc"
+    "#{user_home}/.etc"
   end
 
-  # Begin process
+  # Dependencies, misc
 
   apt_update
   if Chef::VERSION.to_f >= 14
@@ -104,12 +112,17 @@ action :install do
     recursive true
   end
 
+  # Install Ruby and gems
+
   opts = { prefix: new_resource.prefix }
   if new_resource.install_repo
     opts[:install_repo] = new_resource.install_repo
   end
   if new_resource.install_rev
     opts[:install_rev] = new_resource.install_rev
+  end
+  if new_resource.bundler_version
+    opts[:bundler_version] = new_resource.bundler_version
   end
   ruby_runtime new_resource.version do
     provider :ruby_build
@@ -126,15 +139,27 @@ action :install do
     end
   end
 
+  execute 'chown_home_bundle' do
+    command "chown -R #{new_resource.user} #{user_home}/.bundle"
+    only_if { ::Dir.exist?("#{user_home}/.bundle") }
+  end
+
+  # Breadcrumbs
+
   bashrc_mark = "#{etc_dir}/.bashrc-updated"
-  execute 'update_bashrc' do
-    command <<~EOT
-      echo 'export PATH="#{bin_path}:${PATH}"
-      export GEM_HOME="#{gem_home}"
-      export GEM_PATH="#{gem_path}"' >> /home/#{new_resource.user}/.bashrc
-    EOT
-    notifies :create, "file[#{bashrc_mark}]", :immediately
+
+  ruby_block 'update_bashrc' do
+    block do
+      open("#{user_home}/.bashrc", 'a') do |f|
+        f << "\n"
+        { 'PATH' => "#{bin_path}:${PATH}" }.merge(ruby_env).each do |k, v|
+          f << "export #{k}=#{v}\n"
+        end
+      end
+    end
+    only_if { ::File.exist?("#{user_home}/.bashrc") }
     not_if { ::File.exist?(bashrc_mark) }
+    notifies :create, "file[#{bashrc_mark}]", :immediately
   end
 
   file bashrc_mark do
@@ -145,7 +170,7 @@ action :install do
   gemrc_mark = "#{etc_dir}/.gemrc-updated"
   execute 'update_gemrc' do
     command <<~EOT
-      echo 'gem: --no-document' >> /home/#{new_resource.user}/.gemrc
+      echo 'gem: --no-document' >> #{user_home}/.gemrc
     EOT
     notifies :create, "file[#{gemrc_mark}]", :immediately
     not_if { ::File.exist?(gemrc_mark) }
@@ -156,13 +181,20 @@ action :install do
     content ( %x( date ) ).to_s
   end
 
-  if new_resource.export_env_file
+  if new_resource.export_ruby_env
+    ruby_block 'create_ruby_env_file' do
+      block do
+        open("#{etc_dir}/ruby_env", 'w') do |f|
+          {
+            'PATH' => "#{bin_path}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+          }.merge(ruby_env).each do |k, v|
+            f << "#{k}=#{v}\n"
+          end
+        end
+      end
+      notifies :create, "file[#{etc_dir}/ruby_env]", :immediately
+    end
     file "#{etc_dir}/ruby_env" do
-      content <<~EOT
-        PATH=#{bin_path}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-        GEM_HOME=#{gem_home}
-        GEM_PATH=#{gem_path}
-      EOT
       owner new_resource.user
     end
   end

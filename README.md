@@ -139,16 +139,18 @@ end
 #### Properties
 
 - `version` - Ruby version. Defaults to name of resource.
+- `bundler_version` - If not set, latest bundler version is installed.
 - `user` - Main user assigned to this installation.
 - `bin_path` - Location of Ruby installation binaries. Default: `{prefix}/builds/{version}/bin`.
 - `gem_home` - Default: `/home/{user}/.gem/ruby/{version}`.
 - `gem_path` - Default: `{prefix}/builds/{version}/lib/ruby/gems/{version}`. The actual resolved `GEM_PATH` will always also include `GEM_HOME`, so there is no need to include it here. _Note: Always verify this path, especially for new Ruby patch versions, which don't seem to follow this default path naming scheme._
+- `ruby_env` - Additional environment variables if needed. Default: `{}`.
+- `export_ruby_env` - If true, values for the environment variables, such as `PATH`, `GEM_HOME`, and `GEM_PATH` will be exported into a file located at `/home/{user}/.etc/ruby_env`. Useful for automating user-specific Ruby commands. Default: true.
 - `gems` - Gems to be installed, if desired. This is an array of either strings for gem names, or hashes for gem names and versions.
 - `apt_packages` - (optional) Dependent OS packages for Ruby. Defaults to `node['app-ror']['ruby']['apt_packages']`.
 - `install_git` - Whether to include installation of Git. Default: true.
 - `install_yarn` - Whether to include installation of Yarn. Default: true.
 - `install_nodejs` - Whether to include installation of NodeJS. Default: true.
-- `export_env_file` - If true, values for the environment variables `PATH`, `GEM_HOME`, and `GEM_PATH` will be exported into a file located at `/home/{user}/.etc/ruby_env`. Useful for automating user-specific Ruby commands. Default: true.
 
 #### Properties Wrapped From [Poise-Ruby-Build](https://github.com/poise/poise-ruby-build) Cookbook
 

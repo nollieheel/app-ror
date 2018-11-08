@@ -1,3 +1,11 @@
+## 2.1.0 - 2018-11-10
+### Changed
+- Resource `app_ror_ruby`: rename property `export_env_file` to `export_ruby_env`.
+
+### Added
+- Resource `app_ror_ruby`: add property `bundler_version` for finer grained Bundler installation.
+- Resource `app_ror_ruby`: add property `ruby_env` to customize environment variables for Ruby.
+
 ## 2.0.0 - 2018-10-17
 ### Changed
 - BREAKING CHANGES to most resources!
