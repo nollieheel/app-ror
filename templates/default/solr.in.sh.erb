@@ -142,5 +142,9 @@
 #SOLR_OPTS="$SOLR_OPTS $SOLR_ZK_CREDS_AND_ACLS"
 
 <% @vars.each do |k, v| -%>
+<%   if v.is_a?(Numeric) -%>
+<%= k %>=<%= v %>
+<%   else -%>
 <%= k %>="<%= v %>"
+<%   end -%>
 <% end -%>

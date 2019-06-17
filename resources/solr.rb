@@ -31,7 +31,7 @@ property :install_script, String, default: 'bin/install_solr_service.sh'
 property :extract_dir, String, default: '/opt'
 property :solr_user, String, default: 'solr'
 property :solr_dir, String, default: '/var/solr'
-property :solr_port, [String, Integer], default: '8983'
+property :solr_port, Integer, default: 8983
 
 property :solr_properties, Hash, default: {}
 

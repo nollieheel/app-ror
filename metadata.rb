@@ -4,7 +4,7 @@ maintainer_email 'iskitingbords@gmail.com'
 license          'Apache License v2'
 description      'Installs/Configures app-ror'
 long_description 'Installs/Configures app-ror'
-version          '2.1.0'
+version          '2.1.1'
 
 depends 'poise-ruby', '~> 2.4.0'
 depends 'poise-ruby-build', '~> 1.1.0'

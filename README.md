@@ -164,7 +164,7 @@ Installs Solr according to the [official guide](https://lucene.apache.org/solr/g
 
 ```ruby
 app_ror_solr '6.6.4' do
-  solr_port '8000'
+  solr_port 8000
 end
 ```
 
@@ -185,7 +185,7 @@ end
 ```
 app_ror_solr '6.6.4' do
   solr_properties({
-    'SOLR_PORT' => '8000',
+    'SOLR_PORT' => 8000,
     'SOLR_HEAP' => '10g',
   })
 end

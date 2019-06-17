@@ -1,3 +1,7 @@
+## 2.1.1 - 2019-06-17
+### Fixed
+- Resource `solr`: remove quotes on numeric config values in `solr.in.sh`.
+
 ## 2.1.0 - 2018-11-10
 ### Changed
 - Resource `app_ror_ruby`: rename property `export_env_file` to `export_ruby_env`.
