@@ -146,6 +146,7 @@ end
 - `gem_path` - Default: `{prefix}/builds/{version}/lib/ruby/gems/{version}`. The actual resolved `GEM_PATH` will always also include `GEM_HOME`, so there is no need to include it here. _Note: Always verify this path, especially for new Ruby patch versions, which don't seem to follow this default path naming scheme._
 - `ruby_env` - Additional environment variables if needed. Default: `{}`.
 - `export_ruby_env` - If true, values for the environment variables, such as `PATH`, `GEM_HOME`, and `GEM_PATH` will be exported into a file located at `/home/{user}/.etc/ruby_env`. Useful for automating user-specific Ruby commands. Default: true.
+- `bashrc_prepend_env` - If true, env variable declarations will be prepended at the beginning of `.bashrc`, instead of appending them. Might be useful for Capistrano shell-less deployments. Default: false.
 - `gems` - Gems to be installed, if desired. This is an array of either strings for gem names, or hashes for gem names and versions.
 - `apt_packages` - (optional) Dependent OS packages for Ruby. Defaults to `node['app-ror']['ruby']['apt_packages']`.
 - `install_git` - Whether to include installation of Git. Default: true.

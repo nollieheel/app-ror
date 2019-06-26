@@ -3,7 +3,7 @@
 # Cookbook Name:: app-ror
 # Resource:: manage_sidekiq
 #
-# Copyright (C) 2018, Earth U
+# Copyright (C) 2019, Earth U
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.

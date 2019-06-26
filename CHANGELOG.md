@@ -1,3 +1,8 @@
+## 2.2.0 - 2019-06-26
+### Added
+- Resource `ruby`: Add property `bashrc_prepend_env` as an option to prepend the environment variable declarations into `.bashrc`, instead of appending them at the end of the file.
+- Updated copyright years.
+
 ## 2.1.1 - 2019-06-17
 ### Fixed
 - Resource `solr`: remove quotes on numeric config values in `solr.in.sh`.

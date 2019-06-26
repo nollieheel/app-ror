@@ -3,7 +3,7 @@
 # Cookbook Name:: app-ror
 # Resource:: ruby
 #
-# Copyright (C) 2018, Earth U
+# Copyright (C) 2019, Earth U
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ property :ruby_env, Hash, default: {}
 # export_ruby_env, if true, will write to {etc_dir}/ruby_env
 property :etc_dir, [String, false], default: false
 property :export_ruby_env, [true, false], default: true
+property :bashrc_prepend_env, [true, false], default: false
 
 property :apt_packages, Array, default: lazy { node['app-ror']['ruby']['apt_packages'] }
 property :gems, Array, default: []
@@ -146,18 +147,36 @@ action :install do
 
   # Breadcrumbs
 
+  bashrc = "#{user_home}/.bashrc"
   bashrc_mark = "#{etc_dir}/.bashrc-updated"
+  bashrc_tmp = "#{user_home}/.bashrc.tmp"
 
   ruby_block 'update_bashrc' do
     block do
-      open("#{user_home}/.bashrc", 'a') do |f|
-        f << "\n"
-        { 'PATH' => "#{bin_path}:${PATH}" }.merge(ruby_env).each do |k, v|
-          f << "export #{k}=#{v}\n"
+      if new_resource.bashrc_prepend_env
+
+        open(bashrc_tmp, 'w') do |f|
+          { 'PATH' => "#{bin_path}:${PATH}" }.merge(ruby_env).each do |k, v|
+            f << "export #{k}=#{v}\n"
+          end
+
+          ::File.foreach(bashrc) do |g|
+            f << g
+          end
+        end
+        ::File.rename(bashrc, "#{etc_dir}/.bashrc.orig")
+        ::File.rename(bashrc_tmp, bashrc)
+      else
+
+        open(bashrc, 'a') do |f|
+          f << "\n"
+          { 'PATH' => "#{bin_path}:${PATH}" }.merge(ruby_env).each do |k, v|
+            f << "export #{k}=#{v}\n"
+          end
         end
       end
     end
-    only_if { ::File.exist?("#{user_home}/.bashrc") }
+    only_if { ::File.exist?(bashrc) }
     not_if { ::File.exist?(bashrc_mark) }
     notifies :create, "file[#{bashrc_mark}]", :immediately
   end
@@ -165,6 +184,12 @@ action :install do
   file bashrc_mark do
     action :nothing
     content ( %x( date ) ).to_s
+  end
+
+  file bashrc do
+    mode '0644'
+    owner new_resource.user
+    group new_resource.user
   end
 
   gemrc_mark = "#{etc_dir}/.gemrc-updated"
