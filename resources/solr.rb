@@ -95,10 +95,13 @@ action :install do
     owner    'root'
     group    new_resource.solr_user
     mode     '0640'
-    notifies :start, 'service[solr]', :immediately
     variables(
       :vars => solr_props
     )
+  end
+
+  service 'solr' do
+    action :start
   end
 
 end

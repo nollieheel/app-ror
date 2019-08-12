@@ -1,3 +1,7 @@
+## 2.2.1 - 2019-08-12
+### Fixed
+- Fixed bug where Solr service is left in stopped state if there are no modifications to `solr.in.sh`.
+
 ## 2.2.0 - 2019-06-26
 ### Added
 - Resource `ruby`: Add property `bashrc_prepend_env` as an option to prepend the environment variable declarations into `.bashrc`, instead of appending them at the end of the file.
