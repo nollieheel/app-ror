@@ -1,226 +1,226 @@
 #
-# Author:: Earth U (<iskitingbords@gmail.com>)
-# Cookbook Name:: app-ror
+# Cookbook:: app_ror
 # Resource:: ruby
 #
-# Copyright (C) 2019, Earth U
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
+# Copyright:: 2021, Earth U
 
-property :version, String, name_property: true
-property :bundler_version, [String, false], default: false
-property :user, String, required: true
+cb = 'app_ror'
+unified_mode true
 
-property :prefix, String, default: '/opt/ruby_build'
-property :install_repo, [String, false], default: false
-property :install_rev, [String, false], default: false
+property :version, String,
+         description: 'Ruby version to install',
+         name_property: true
 
-property :bin_path, [String, false], default: false
-property :gem_home, [String, false], default: false
-property :gem_path, [String, false], default: false
-property :ruby_env, Hash, default: {}
+property :user, String,
+         description: 'Main user for this installation',
+         default: 'ubuntu'
 
-# etc_dir default value is: /home/{user}/.etc
-# export_ruby_env, if true, will write to {etc_dir}/ruby_env
-property :etc_dir, [String, false], default: false
-property :export_ruby_env, [true, false], default: true
-property :bashrc_prepend_env, [true, false], default: false
+property :ruby_bin_path, String,
+         description: 'Location of Ruby installation binaries. '\
+                      'Defaults to: {prefix_path}/bin'
 
-property :apt_packages, Array, default: lazy { node['app-ror']['ruby']['apt_packages'] }
-property :gems, Array, default: []
+property :gem_home, String,
+         description: 'Defaults to: /home/{user}/.gem/ruby/{version}'
 
-property :install_git, [true, false], default: true
-property :install_yarn, [true, false], default: true
-property :install_nodejs, [true, false], default: true
-property :git_ppa, String, default: 'ppa:git-core/ppa'
+property :gem_path, String,
+         description: 'Defaults to: {prefix_path}/lib/ruby/gems/{version}. '\
+                      'Actual resolved :gem_path includes the :gem_home. '\
+                      'The version suffix must be manually verified because '\
+                      'patch values in the version number does not actually '\
+                      'modify this suffix in practice.'
+
+property :ruby_env, Hash,
+         description: 'Additional environment variables for Ruby, if needed',
+         default: {}
+
+property :export_ruby_env, [true, false],
+         description: 'If true, Ruby environment variables (including '\
+                      'GEM_HOME and GEM_PATH) will be written into '\
+                      '{etc_dir}/ruby_env',
+         default: true
+
+property :etc_dir, String,
+         description: 'Defaults to: /home/{user}/.etc'
+
+property :bashrc_prepend_env, [true, false],
+         description: 'If true, env variable declarations will be prepended '\
+                      'at the beginning of ~/.bashrc, instead of appending '\
+                      'them. Might be useful for Capistrano shell-less '\
+                      'deployments.',
+         default: false
+
+property :apt_packages, Array,
+         description: 'Apt packages to install',
+         default: node[cb]['ruby']['apt_packages']
+
+property :install_nodejs, [true, false],
+         description: 'Whether to install NodeJS',
+         default: true
+
+property :install_yarn, [true, false],
+         description: 'Whether to install Yarn',
+         default: true
+
+# Wrapped properties from ruby_build cookbook:
+property :prefix_path, String,
+         description: 'Location of the Ruby installation',
+         default: node[cb]['ruby']['prefix_path']
+
+property :ruby_build_git_ref, String,
+         description: 'Git ref of ruby_build repo to download',
+         default: node[cb]['ruby']['ruby_build_git_ref']
+
+action_class do
+  def user_home
+    "/home/#{new_resource.user}"
+  end
+
+  def prop_ruby_bin_path
+    if property_is_set?(:ruby_bin_path)
+      new_resource.ruby_bin_path
+    else
+      "#{new_resource.prefix_path}/bin"
+    end
+  end
+
+  def prop_gem_home
+    if property_is_set?(:gem_home)
+      new_resource.gem_home
+    else
+      "#{user_home}/.gem/ruby/#{new_resource.version}"
+    end
+  end
+
+  def prop_gem_path
+    if property_is_set?(:gem_path)
+      new_resource.gem_path
+    else
+      "#{new_resource.prefix_path}/lib/ruby/gems/#{new_resource.version}"
+    end
+  end
+
+  def resolved_gem_path
+    [prop_gem_home, prop_gem_path].uniq.join(':')
+  end
+
+  def resolved_ruby_env
+    {
+      'GEM_HOME' => prop_gem_home,
+      'GEM_PATH' => resolved_gem_path,
+    }.merge(new_resource.ruby_env)
+  end
+
+  def prop_etc_dir
+    property_is_set?(:etc_dir) ? new_resource.etc_dir : "#{user_home}/.etc"
+  end
+end
 
 action :install do
-
-  # Calculate defaults
-
-  user_home = "/home/#{new_resource.user}"
-
-  bin_path = if new_resource.bin_path
-    new_resource.bin_path
-  else
-    "#{new_resource.prefix}/builds/#{new_resource.version}/bin"
+  apt_repository 'git' do
+    uri 'ppa:git-core/ppa'
   end
 
-  gem_home = if new_resource.gem_home
-    new_resource.gem_home
-  else
-    "#{user_home}/.gem/ruby/#{new_resource.version}"
-  end
+  build_essential
 
-  arg_gem_path = if new_resource.gem_path
-    new_resource.gem_path
-  else
-    "#{new_resource.prefix}/builds/#{new_resource.version}/lib/ruby/gems/#{new_resource.version}"
-  end
-  gem_path = ([ gem_home ] + arg_gem_path.split(':')).uniq.join(':')
-
-  ruby_env = {
-    'GEM_HOME' => gem_home,
-    'GEM_PATH' => gem_path
-  }.merge(new_resource.ruby_env)
-
-  etc_dir = if new_resource.etc_dir
-    new_resource.etc_dir
-  else
-    "#{user_home}/.etc"
-  end
-
-  # Dependencies, misc
-
-  apt_update
-  if Chef::VERSION.to_f >= 14
-    build_essential
-  else
-    package 'build-essential'
-  end
-
-  if new_resource.install_git
-    apt_repository 'git' do
-      uri          new_resource.git_ppa
-      distribution node['lsb']['codename']
+  unless new_resource.apt_packages.empty?
+    package 'ror_deps' do
+      package_name new_resource.apt_packages
     end
-    run_context.include_recipe 'git'
+  end
+
+  git_client 'git'
+
+  ruby_build_install 'ruby_build' do
+    git_ref new_resource.ruby_build_git_ref
+  end
+
+  ruby_build_definition new_resource.version do
+    prefix_path new_resource.prefix_path
   end
 
   if new_resource.install_nodejs
-    run_context.include_recipe 'nodejs'
+    include_recipe 'nodejs'
   end
 
   if new_resource.install_yarn
-    run_context.include_recipe 'yarn'
+    # Yarn 1.x is must be installed globally.
+    # Migrating to >= 2.x is then on a per-project basis.
+    include_recipe 'yarn'
   end
 
-  package new_resource.apt_packages
-
-  directory etc_dir do
+  directory prop_etc_dir do
     owner     new_resource.user
     recursive true
   end
 
-  # Install Ruby and gems
-
-  opts = { prefix: new_resource.prefix }
-  if new_resource.install_repo
-    opts[:install_repo] = new_resource.install_repo
-  end
-  if new_resource.install_rev
-    opts[:install_rev] = new_resource.install_rev
-  end
-  if new_resource.bundler_version
-    opts[:bundler_version] = new_resource.bundler_version
-  end
-  ruby_runtime new_resource.version do
-    provider :ruby_build
-    options  opts
-  end
-
-  new_resource.gems.each do |g|
-    if g.is_a?(String)
-      ruby_gem g
-    else
-      ruby_gem g[:gem] do
-        version g[:version]
-      end
-    end
-  end
-
-  execute 'chown_home_bundle' do
-    command "chown -R #{new_resource.user} #{user_home}/.bundle"
-    only_if { ::Dir.exist?("#{user_home}/.bundle") }
-  end
-
-  # Breadcrumbs
-
   bashrc = "#{user_home}/.bashrc"
-  bashrc_mark = "#{etc_dir}/.bashrc-updated"
+  bashrc_mark = "#{prop_etc_dir}/.bashrc-updated"
   bashrc_tmp = "#{user_home}/.bashrc.tmp"
 
   ruby_block 'update_bashrc' do
     block do
+      bash_vars = {
+        'PATH' => "#{prop_ruby_bin_path}:${PATH}",
+      }.merge(resolved_ruby_env)
+
       if new_resource.bashrc_prepend_env
 
         open(bashrc_tmp, 'w') do |f|
-          { 'PATH' => "#{bin_path}:${PATH}" }.merge(ruby_env).each do |k, v|
+          f << "###\n# Prepended to ~/.bashrc by Chef:\n###\n"
+          bash_vars.each do |k, v|
             f << "export #{k}=#{v}\n"
           end
+          f << "###\n"
 
           ::File.foreach(bashrc) do |g|
             f << g
           end
         end
-        ::File.rename(bashrc, "#{etc_dir}/.bashrc.orig")
+        ::File.rename(bashrc, "#{prop_etc_dir}/.bashrc.orig")
         ::File.rename(bashrc_tmp, bashrc)
       else
 
         open(bashrc, 'a') do |f|
-          f << "\n"
-          { 'PATH' => "#{bin_path}:${PATH}" }.merge(ruby_env).each do |k, v|
+          f << "\n###\n# Added by Chef:\n###\n"
+          bash_vars.each do |k, v|
             f << "export #{k}=#{v}\n"
           end
+          f << "###\n"
         end
       end
     end
-    only_if { ::File.exist?(bashrc) }
-    not_if { ::File.exist?(bashrc_mark) }
+    only_if  { ::File.exist?(bashrc) }
+    not_if   { ::File.exist?(bashrc_mark) }
     notifies :create, "file[#{bashrc_mark}]", :immediately
   end
 
   file bashrc_mark do
-    action :nothing
-    content ( %x( date ) ).to_s
+    action  :nothing
+    content `date`.to_s
   end
 
   file bashrc do
-    mode '0644'
+    mode  '0644'
     owner new_resource.user
     group new_resource.user
   end
 
-  gemrc_mark = "#{etc_dir}/.gemrc-updated"
-  execute 'update_gemrc' do
-    command <<~EOT
-      echo 'gem: --no-document' >> #{user_home}/.gemrc
-    EOT
-    notifies :create, "file[#{gemrc_mark}]", :immediately
-    not_if { ::File.exist?(gemrc_mark) }
-  end
-
-  file gemrc_mark do
-    action :nothing
-    content ( %x( date ) ).to_s
+  file "#{user_home}/.gemrc" do
+    content 'gem: --no-document'
+    mode    '0644'
+    owner   new_resource.user
+    group   new_resource.user
   end
 
   if new_resource.export_ruby_env
-    ruby_block 'create_ruby_env_file' do
-      block do
-        open("#{etc_dir}/ruby_env", 'w') do |f|
-          {
-            'PATH' => "#{bin_path}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-          }.merge(ruby_env).each do |k, v|
-            f << "#{k}=#{v}\n"
-          end
-        end
-      end
-      notifies :create, "file[#{etc_dir}/ruby_env]", :immediately
-    end
-    file "#{etc_dir}/ruby_env" do
-      owner new_resource.user
+    env_vars_str = {
+      'PATH' => "#{prop_ruby_bin_path}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+    }.merge(resolved_ruby_env).map { |k, v| "#{k}=#{v}" }
+
+    file "#{prop_etc_dir}/ruby_env" do
+      content env_vars_str.join("\n")
+      mode    '0644'
+      owner   new_resource.user
     end
   end
 end

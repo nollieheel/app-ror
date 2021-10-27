@@ -21,6 +21,8 @@
 # Install Solr via these steps:
 # https://lucene.apache.org/solr/guide/6_6/taking-solr-to-production.html#taking-solr-to-production
 
+# TODO!!
+
 property :version, String, name_property: true
 property :file_uri, [String, false], default: false
 

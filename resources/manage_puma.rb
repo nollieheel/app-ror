@@ -1,81 +1,102 @@
 #
-# Author:: Earth U (<iskitingbords@gmail.com>)
-# Cookbook Name:: app-ror
+# Cookbook:: app_ror
 # Resource:: manage_puma
 #
-# Copyright (C) 2019, Earth U
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
+# Copyright:: 2021, Earth U
 
-# Add config for Puma manager.
-# (Based on: https://github.com/puma/puma/tree/master/tools/jungle/upstart)
+unified_mode true
 
 # Project properties
-property :app_dir, String, name_property: true
-property :conf_path, String, default: '../../shared/puma.rb'
+property :app_dir, String,
+         description: 'Working directory of Ruby project '\
+                      'E.g. /var/src/myapp/current',
+         name_property: true
 
-# App properties
-property :user, String, required: true
-property :group, [String, false], default: false
-property :env_file, [String, false], default: false
+property :base_dir, String,
+         description: 'Base directory of project. Gets used if :conf_file '\
+                      'is a relative path. Defaults to dirname of :app_dir.'
 
-property :puma_source, [String, false], default: false
-property :puma_cookbook, String, default: 'app-ror'
+property :conf_file, String,
+         description: 'Location of Puma config file',
+         default: 'shared/puma.rb'
 
-action :install do
-  if not node['platform'] == 'ubuntu'
-    Chef::Application.fatal!("#{node['platform']} is not supported")
+# Systemd properties
+property :user, String,
+         description: 'User that will run the Puma process',
+         default: 'ubuntu'
+
+property :env_file, String,
+         description: 'EnvironmentFile location assigned to the systemd '\
+                      'unit. Defaults to: /home/{user}/.etc/ruby_env if that '\
+                      'file exists. Otherwise, no EnvironmentFile will be '\
+                      'passed to systemd.'
+
+property :unit_name, String,
+         description: 'Name of the systemd unit',
+         default: 'puma'
+
+action_class do
+  def prop_base_dir
+    if property_is_set?(:base_dir)
+      new_resource.base_dir
+    else
+      ::File.dirname(new_resource.app_dir)
+    end
   end
 
-  env_file = new_resource.env_file ? new_resource.env_file : "/home/#{new_resource.user}/.etc/ruby_env"
-
-  if node['platform_version'].to_f >= 15.04
-
-    puma_source = new_resource.puma_source ? new_resource.puma_source : 'puma.service.erb'
-    template '/etc/systemd/system/puma.service' do
-      source   puma_source
-      cookbook new_resource.puma_cookbook
-      variables(
-        :user      => new_resource.user,
-        :env_file  => env_file,
-        :app_dir   => new_resource.app_dir,
-        :conf_path => new_resource.conf_path
-      )
-      notifies :run, 'execute[enable_puma_service]', :immediately
+  def prop_conf_file
+    if new_resource.conf_file.start_with?('/')
+      new_resource.conf_file
+    else
+      "#{prop_base_dir}/#{new_resource.conf_file}"
     end
+  end
 
-    execute 'enable_puma_service' do
-      command 'systemctl enable puma.service'
-      action  :nothing
-    end
+  def user_home
+    "/home/#{new_resource.user}"
+  end
 
-  elsif node['platform_version'].to_f >= 12.04
+  def prop_env_file
+    f = if property_is_set?(:env_file)
+          new_resource.env_file
+        else
+          "#{user_home}/.etc/ruby_env"
+        end
 
-    puma_source = new_resource.puma_source ? new_resource.puma_source : 'puma.conf.erb'
-    group = new_resource.group ? new_resource.group : new_resource.user
-    template '/etc/init/puma.conf' do
-      source   puma_source
-      cookbook new_resource.puma_cookbook
-      variables(
-        :user      => new_resource.user,
-        :group     => group,
-        :env_file  => env_file,
-        :app_dir   => new_resource.app_dir,
-        :conf_path => new_resource.conf_path
-      )
-    end
-  else
-    Chef::Application.fatal!("Version #{node['platform_version']} is not supported")
+    ::File.exist?(f) ? f : false
+  end
+end
+
+action :create do
+  execstart = "/bin/bash -lc 'bundle exec --keep-file-descriptors "\
+              "puma -C #{prop_conf_file}'"
+
+  service = {
+    Type:             'simple',
+    User:             new_resource.user,
+    WorkingDirectory: new_resource.app_dir,
+    Restart:          'always',
+    ExecStart:        execstart,
+  }
+
+  if prop_env_file
+    service[:EnvironmentFile] = prop_env_file
+  end
+
+  unit = {
+    Unit: {
+      Description: "Puma server for #{new_resource.app_dir}. Generated by Chef.",
+      After:       'network.target',
+    },
+    Service: service,
+    Install: {
+      WantedBy: 'multi-user.target',
+    },
+  }
+
+  systemd_unit "#{new_resource.unit_name}.service" do
+    content unit
+    verify  false
+    action  [:create, :enable]
   end
 end

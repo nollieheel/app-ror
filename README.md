@@ -1,7 +1,8 @@
-# app-ror cookbook
+# app_ror cookbook
 
 Some cookbook resources to ease setup of Ruby-on-Rails apps.
 
+TODO: Outdated docs. Revise this.
 ## Supported Platforms
 
 Ubuntu >= 14.04

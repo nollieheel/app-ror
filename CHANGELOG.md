@@ -1,3 +1,11 @@
+# app_ror CHANGELOG
+
+## 3.0.0 - 2021-10-27
+### Changed
+- BREAKING changes all around
+- Renamed cookbook  to `app_ror`
+- Made compatible with Chef 17.x
+
 ## 2.2.1 - 2019-08-12
 ### Fixed
 - Fixed bug where Solr service is left in stopped state if there are no modifications to `solr.in.sh`.

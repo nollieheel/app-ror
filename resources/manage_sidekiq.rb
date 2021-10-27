@@ -1,109 +1,194 @@
 #
-# Author:: Earth U (<iskitingbords @ gmail.com>)
-# Cookbook Name:: app-ror
+# Cookbook:: app_ror
 # Resource:: manage_sidekiq
 #
-# Copyright (C) 2019, Earth U
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
+# Copyright:: 2021, Earth U
 
-# Add config for Sidekiq process manager
-# (https://github.com/mperham/sidekiq/tree/v5.1.3/examples/upstart)
+unified_mode true
+
+# Sidekiq systemd config taken from:
+# https://github.com/mperham/sidekiq/blob/v5.2.9/examples/systemd/sidekiq.service
+# https://github.com/mperham/sidekiq/blob/v6.2.2/examples/systemd/sidekiq.service
 
 # Project properties
-property :base_dir, String, name_property: true
-property :environment, String, default: 'production'
-property :app_dir, String, default: 'current'
-property :log_dir, String, default: 'shared/log'
-property :pidfile_dir, String, default: 'shared/tmp/pids'
-property :conf_path, String, default: 'current/config/sidekiq.yml'
-property :workers, [String, Integer], default: 1
+property :app_dir, String,
+         description: 'Working directory of Ruby project. '\
+                      'E.g. /var/src/myapp/current',
+         name_property: true
 
-# App properties
-property :user, String, required: true
-property :group, [String, false], default: false
-property :env_file, [String, false], default: false
-property :dependency, Hash, default: { :upstart => false, :systemd => false }
+property :base_dir, String,
+         description: 'Base directory of project. Gets used if any of '\
+                      ':log_dir, :pidfile_dir, or :conf_file are relative '\
+                      'paths. Defaults to dirname of :app_dir.'
 
-property :sidekiq_source, [String, false], default: false
-property :sidekiq_cookbook, String, default: 'app-ror'
-# Only on Upstart:
-property :workers_source, String, default: 'workers.conf.erb'
-property :workers_cookbook, String, default: 'app-ror'
+property :conf_file, String,
+         description: 'Location of Sidekiq config file',
+         default: 'current/config/sidekiq.yml'
 
-action :install do
-  if not node['platform'] == 'ubuntu'
-    Chef::Application.fatal!("#{node['platform']} is not supported")
+property :log_dir, [String, false],
+         description: 'Location of logs as passed to the Sidekiq binary. '\
+                      'If passing a --logfile parameter to the binary is '\
+                      'not desired, set this property to false.',
+         default: 'shared/log'
+
+property :pidfile_dir, [String, false],
+         description: 'Location of pidfile as passed to the Sidekiq binary. '\
+                      'If passing a --pidfile parameter to the binary is '\
+                      'not desired, set this property to false.',
+         default: 'shared/tmp/pids'
+
+property :environment, String,
+         description: 'Sidekiq environment name',
+         default: 'production'
+
+# Systemd properties
+property :user, String,
+         description: 'User that will run the Sidekiq process',
+         default: 'ubuntu'
+
+property :group, String,
+         description: 'Defaults to the name of :user'
+
+property :env_file, String,
+         description: 'EnvironmentFile location assigned to the systemd '\
+                      'unit. Defaults to: /home/{user}/.etc/ruby_env if that '\
+                      'file exists. Otherwise, no EnvironmentFile will be '\
+                      'passed to systemd.'
+
+property :processes, Integer,
+         description: 'Number of systemd processes to run. The first process '\
+                      'will be called sidekiq-1.service. The second is '\
+                      'sidekiq-2.service, and so on.',
+         callbacks: { 'must be a positive int' => ->(p) { p > 0 } },
+         default: 1
+
+property :unit_name, String,
+         description: 'Name of the systemd unit. Will be suffixed '\
+                      'by processes number.',
+         default: 'sidekiq-'
+
+property :dependencies, [String, Array],
+         description: 'Additional systemd dependencies, if needed '\
+                      '(e.g. redis@redis-test.service)',
+         default: []
+
+action_class do
+  def prop_base_dir
+    if property_is_set?(:base_dir)
+      new_resource.base_dir
+    else
+      ::File.dirname(new_resource.app_dir)
+    end
   end
 
-  env_file = new_resource.env_file ? new_resource.env_file : "/home/#{new_resource.user}/.etc/ruby_env"
-  group = new_resource.group ? new_resource.group : new_resource.user
+  def abs_path(path)
+    path.start_with?('/') ? path : "#{prop_base_dir}/#{path}"
+  end
 
-  if node['platform_version'].to_f >= 15.04
+  def prop_conf_file
+    abs_path(new_resource.conf_file)
+  end
 
-    sidekiq_source = new_resource.sidekiq_source ? new_resource.sidekiq_source : 'sidekiq.service.erb'
-    template '/etc/systemd/system/sidekiq@.service' do
-      source   sidekiq_source
-      cookbook new_resource.sidekiq_cookbook
-      variables(
-        :user        => new_resource.user,
-        :group       => group,
-        :env_file    => env_file,
-        :dependency  => new_resource.dependency,
-        :environment => new_resource.environment,
-        :base_dir    => new_resource.base_dir,
-        :app_dir     => new_resource.app_dir,
-        :log_dir     => new_resource.log_dir,
-        :pidfile_dir => new_resource.pidfile_dir,
-        :conf_path   => new_resource.conf_path,
+  def prop_log_dir
+    if new_resource.log_dir.is_a?(String)
+      abs_path(new_resource.log_dir)
+    else
+      new_resource.log_dir
+    end
+  end
+
+  def prop_pidfile_dir
+    if new_resource.pidfile_dir.is_a?(String)
+      abs_path(new_resource.pidfile_dir)
+    else
+      new_resource.pidfile_dir
+    end
+  end
+
+  def prop_group
+    property_is_set?(:group) ? new_resource.group : new_resource.user
+  end
+
+  def user_home
+    "/home/#{new_resource.user}"
+  end
+
+  def prop_env_file
+    f = if property_is_set?(:env_file)
+          new_resource.env_file
+        else
+          "#{user_home}/.etc/ruby_env"
+        end
+
+    ::File.exist?(f) ? f : false
+  end
+
+  def prop_dependencies
+    deps = [new_resource.dependencies].flatten
+    deps.empty? ? false : deps
+  end
+end
+
+action :create do
+  desc = "Sidekiq instance %i for #{new_resource.app_dir}. Generated by Chef."
+
+  aft = 'syslog.target network.target'
+  if prop_dependencies
+    aft << ' ' << prop_dependencies.join(' ')
+  end
+
+  execstart = "/bin/bash -lc 'bundle exec sidekiq "\
+    "--environment #{new_resource.environment} "\
+    "--config #{prop_conf_file}"
+  formatargs = 0
+  if prop_pidfile_dir
+    execstart << " --pidfile #{prop_pidfile_dir}/#{new_resource.unit_name}%i.pid"
+    formatargs += 1
+  end
+  if prop_log_dir
+    execstart << " --logfile #{prop_log_dir}/#{new_resource.unit_name}%i.log"
+    formatargs += 1
+  end
+  execstart << "'"
+
+  ins = { WantedBy: 'multi-user.target' }
+
+  new_resource.processes.times do |p|
+    unit = {
+      Description: desc % (p + 1),
+      After:       aft,
+    }
+
+    ps = []
+    formatargs.times { ps << (p + 1) }
+
+    service = {
+      Type:             'simple',
+      User:             new_resource.user,
+      Group:            prop_group,
+      UMask:            '0002',
+      WorkingDirectory: new_resource.app_dir,
+      ExecStart:        execstart % ps,
+      Environment:      'MALLOC_ARENA_MAX=2',
+      RestartSec:       1,
+      Restart:          'on-failure',
+      StandardOutput:   'syslog',
+      StandardError:    'syslog',
+      SyslogIdentifier: 'sidekiq',
+    }
+
+    if prop_env_file
+      service[:EnvironmentFile] = prop_env_file
+    end
+
+    systemd_unit "#{new_resource.unit_name}#{p + 1}.service" do
+      verify false
+      action [:create, :enable]
+      content(
+        Unit:    unit,
+        Service: service,
+        Install: ins
       )
     end
-
-    new_resource.workers.times do |i|
-      execute "enable_sidekiq_#{i}_service" do
-        command "systemctl enable sidekiq@#{i}.service"
-      end
-    end
-
-  elsif node['platform_version'].to_f >= 12.04
-
-    template '/etc/init/workers.conf' do
-      source   new_resource.workers_source
-      cookbook new_resource.workers_cookbook
-      variables(
-        :dependency => new_resource.dependency,
-        :workers    => new_resource.workers,
-      )
-    end
-
-    sidekiq_source = new_resource.sidekiq_source ? new_resource.sidekiq_source : 'sidekiq.conf.erb'
-    template '/etc/init/sidekiq.conf' do
-      source   sidekiq_source
-      cookbook new_resource.sidekiq_cookbook
-      variables(
-        :user        => new_resource.user,
-        :group       => group,
-        :env_file    => env_file,
-        :environment => new_resource.environment,
-        :base_dir    => new_resource.base_dir,
-        :app_dir     => new_resource.app_dir,
-        :log_dir     => new_resource.log_dir,
-        :pidfile_dir => new_resource.pidfile_dir,
-        :conf_path   => new_resource.conf_path,
-      )
-    end
-  else
-    Chef::Application.fatal!("Version #{node['platform_version']} is not supported")
   end
 end

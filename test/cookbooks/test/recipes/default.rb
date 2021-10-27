@@ -18,10 +18,10 @@
 # limitations under the License.
 #
 
-include_recipe 'test::swap'
-include_recipe 'test::base_dirs'
-include_recipe 'test::logrotate'
-include_recipe 'test::ruby'
-include_recipe 'test::solr'
-include_recipe 'test::manage_puma'
-include_recipe 'test::manage_sidekiq'
+# include_recipe 'test::swap'
+# include_recipe 'test::base_dirs'
+# include_recipe 'test::logrotate'
+# include_recipe 'test::ruby'
+# include_recipe 'test::solr'
+# include_recipe 'test::manage_puma'
+# include_recipe 'test::manage_sidekiq'

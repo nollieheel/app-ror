@@ -1,11 +1,7 @@
-<% if @path.is_a?(Array) -%>
-<%   @path.each do |p| -%>
+<% @path.each do |p| -%>
 <%= p %>
-<%   end -%>
-{
-<% else -%>
-<%= @path %> {
 <% end -%>
+{
 <% @config.each do |c| -%>
     <%= c %>
 <% end -%>
