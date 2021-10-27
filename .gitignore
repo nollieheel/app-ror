@@ -20,5 +20,3 @@ bin/*
 .kitchen.local.yml
 .chef
 data_bags
-recipes/test*
-attributes/test*
