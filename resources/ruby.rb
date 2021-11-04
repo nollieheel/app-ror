@@ -4,7 +4,6 @@
 #
 # Copyright:: 2021, Earth U
 
-cb = 'app_ror'
 unified_mode true
 
 property :version, String,
@@ -42,33 +41,69 @@ property :export_ruby_env, [true, false],
 property :etc_dir, String,
          description: 'Defaults to: /home/{user}/.etc'
 
+# Prepending the environment variables in .bashrc allows them to be
+# executed _before_ this section:
+#   case $- in
+#       *i*) ;;
+#         *) return;;
+#   esac
+# which causes the rest of the file to be bypassed when deploying with
+# Capistrano, due to the fact that Capistrano uses a non-interactive shell.
 property :bashrc_prepend_env, [true, false],
          description: 'If true, env variable declarations will be prepended '\
                       'at the beginning of ~/.bashrc, instead of appending '\
                       'them. Might be useful for Capistrano shell-less '\
                       'deployments.',
-         default: false
+         default: false,
+         deprecated: 'The property bashrc_prepend_env has been deprecated '\
+                     'and no longer does anything. Generated Ruby env '\
+                     'variables will now always be available to both '\
+                     'interactive and non-interactive shells.'
 
+# Ubuntu 20.04 dependencies as per:
+# - https://github.com/rbenv/ruby-build/wiki#suggested-build-environment
+# - https://gorails.com/setup/ubuntu/20.04
 property :apt_packages, Array,
          description: 'Apt packages to install',
-         default: node[cb]['ruby']['apt_packages']
+         default: %w(
+           autoconf
+           bison
+           libssl-dev
+           libyaml-dev
+           libreadline-dev
+           libncurses5-dev
+           libffi-dev
+           libgdbm6
+           libgdbm-dev
+           libdb-dev
+           zlib1g-dev
+           libxml2-dev
+           libxslt1-dev
+           libcurl4-openssl-dev
+         )
 
 property :install_nodejs, [true, false],
          description: 'Whether to install NodeJS',
          default: true
 
+# Yarn 1.x must be installed globally.
+# Migrating to >= 2.x is then on a per-project basis.
 property :install_yarn, [true, false],
          description: 'Whether to install Yarn',
          default: true
 
+property :default_env_path, String,
+         description: 'Default PATH variable in /etc/environment',
+         default: '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+
 # Wrapped properties from ruby_build cookbook:
 property :prefix_path, String,
          description: 'Location of the Ruby installation',
-         default: node[cb]['ruby']['prefix_path']
+         default: '/usr/local/ruby'
 
 property :ruby_build_git_ref, String,
          description: 'Git ref of ruby_build repo to download',
-         default: node[cb]['ruby']['ruby_build_git_ref']
+         default: 'v20211019'
 
 action_class do
   def user_home
@@ -110,6 +145,12 @@ action_class do
     }.merge(new_resource.ruby_env)
   end
 
+  def resolved_env
+    {
+      'PATH' => "#{prop_ruby_bin_path}:#{new_resource.default_env_path}",
+    }.merge(resolved_ruby_env)
+  end
+
   def prop_etc_dir
     property_is_set?(:etc_dir) ? new_resource.etc_dir : "#{user_home}/.etc"
   end
@@ -143,8 +184,6 @@ action :install do
   end
 
   if new_resource.install_yarn
-    # Yarn 1.x is must be installed globally.
-    # Migrating to >= 2.x is then on a per-project basis.
     include_recipe 'yarn'
   end
 
@@ -153,56 +192,35 @@ action :install do
     recursive true
   end
 
-  bashrc = "#{user_home}/.bashrc"
-  bashrc_mark = "#{prop_etc_dir}/.bashrc-updated"
-  bashrc_tmp = "#{user_home}/.bashrc.tmp"
+  etc_env = '/etc/environment'
+  etc_env_mark = "#{prop_etc_dir}/etc_environment-updated"
 
-  ruby_block 'update_bashrc' do
+  ruby_block 'update_etc_env' do
     block do
-      bash_vars = {
-        'PATH' => "#{prop_ruby_bin_path}:${PATH}",
-      }.merge(resolved_ruby_env)
-
-      if new_resource.bashrc_prepend_env
-
-        open(bashrc_tmp, 'w') do |f|
-          f << "###\n# Prepended to ~/.bashrc by Chef:\n###\n"
-          bash_vars.each do |k, v|
-            f << "export #{k}=#{v}\n"
-          end
-          f << "###\n"
-
-          ::File.foreach(bashrc) do |g|
-            f << g
-          end
-        end
-        ::File.rename(bashrc, "#{prop_etc_dir}/.bashrc.orig")
-        ::File.rename(bashrc_tmp, bashrc)
-      else
-
-        open(bashrc, 'a') do |f|
-          f << "\n###\n# Added by Chef:\n###\n"
-          bash_vars.each do |k, v|
-            f << "export #{k}=#{v}\n"
-          end
-          f << "###\n"
+      open(etc_env, 'a') do |f|
+        resolved_env.each do |k, v|
+          f << "#{k}=#{v}\n"
         end
       end
     end
-    only_if  { ::File.exist?(bashrc) }
-    not_if   { ::File.exist?(bashrc_mark) }
-    notifies :create, "file[#{bashrc_mark}]", :immediately
+    only_if  { ::File.exist?(etc_env) }
+    not_if   { ::File.exist?(etc_env_mark) }
+    notifies :create, "file[#{etc_env_mark}]", :immediately
   end
 
-  file bashrc_mark do
+  file etc_env_mark do
     action  :nothing
     content `date`.to_s
   end
 
-  file bashrc do
-    mode  '0644'
-    owner new_resource.user
-    group new_resource.user
+  if new_resource.export_ruby_env
+    content_str = resolved_env.map { |k, v| "#{k}=#{v}" }
+
+    file "#{prop_etc_dir}/ruby_env" do
+      content content_str.join("\n")
+      mode    '0644'
+      owner   new_resource.user
+    end
   end
 
   file "#{user_home}/.gemrc" do
@@ -210,17 +228,5 @@ action :install do
     mode    '0644'
     owner   new_resource.user
     group   new_resource.user
-  end
-
-  if new_resource.export_ruby_env
-    env_vars_str = {
-      'PATH' => "#{prop_ruby_bin_path}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-    }.merge(resolved_ruby_env).map { |k, v| "#{k}=#{v}" }
-
-    file "#{prop_etc_dir}/ruby_env" do
-      content env_vars_str.join("\n")
-      mode    '0644'
-      owner   new_resource.user
-    end
   end
 end

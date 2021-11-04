@@ -1,5 +1,13 @@
 # app_ror CHANGELOG
 
+## 3.1.0 - 2021-11-05
+### Changed
+- Property 'bashrc_prepend_env' for resource 'app_ror_ruby' is now DEPRECATED.
+
+### Removed
+- Attributes removed from cookbook
+- Remove app_ror_solr resource
+
 ## 3.0.0 - 2021-10-27
 ### Changed
 - BREAKING changes all around
