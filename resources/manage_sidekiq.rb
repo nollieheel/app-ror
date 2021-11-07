@@ -2,7 +2,19 @@
 # Cookbook:: app_ror
 # Resource:: manage_sidekiq
 #
-# Copyright:: 2021, Earth U
+# Copyright:: 2022, Earth U
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 unified_mode true
 
@@ -16,25 +28,23 @@ property :app_dir, String,
                       'E.g. /var/src/myapp/current',
          name_property: true
 
-property :base_dir, String,
-         description: 'Base directory of project. Gets used if any of '\
-                      ':log_dir, :pidfile_dir, or :conf_file are relative '\
-                      'paths. Defaults to dirname of :app_dir.'
-
 property :conf_file, String,
-         description: 'Location of Sidekiq config file',
+         description: 'Location of Sidekiq config file.'\
+                      'Can be relative to dirname of :app_dir.',
          default: 'current/config/sidekiq.yml'
 
 property :log_dir, [String, false],
          description: 'Location of logs as passed to the Sidekiq binary. '\
                       'If passing a --logfile parameter to the binary is '\
-                      'not desired, set this property to false.',
+                      'not desired, set this property to false. '\
+                      'Can be relative to dirname of :app_dir.',
          default: 'shared/log'
 
 property :pidfile_dir, [String, false],
          description: 'Location of pidfile as passed to the Sidekiq binary. '\
                       'If passing a --pidfile parameter to the binary is '\
-                      'not desired, set this property to false.',
+                      'not desired, set this property to false. '\
+                      'Can be relative to dirname of :app_dir.',
          default: 'shared/tmp/pids'
 
 property :environment, String,
@@ -60,7 +70,7 @@ property :processes, Integer,
                       'will be called sidekiq-1.service. The second is '\
                       'sidekiq-2.service, and so on.',
          callbacks: { 'must be a positive int' => ->(p) { p > 0 } },
-         default: 1
+         default: 2
 
 property :unit_name, String,
          description: 'Name of the systemd unit. Will be suffixed '\
@@ -69,20 +79,16 @@ property :unit_name, String,
 
 property :dependencies, [String, Array],
          description: 'Additional systemd dependencies, if needed '\
-                      '(e.g. redis@redis-test.service)',
+                      '(e.g. redis-server.service)',
          default: []
 
 action_class do
-  def prop_base_dir
-    if property_is_set?(:base_dir)
-      new_resource.base_dir
-    else
-      ::File.dirname(new_resource.app_dir)
-    end
-  end
-
   def abs_path(path)
-    path.start_with?('/') ? path : "#{prop_base_dir}/#{path}"
+    if path.start_with?('/')
+      path
+    else
+      "#{::File.dirname(new_resource.app_dir)}/#{path}"
+    end
   end
 
   def prop_conf_file
@@ -109,15 +115,11 @@ action_class do
     property_is_set?(:group) ? new_resource.group : new_resource.user
   end
 
-  def user_home
-    "/home/#{new_resource.user}"
-  end
-
   def prop_env_file
     f = if property_is_set?(:env_file)
           new_resource.env_file
         else
-          "#{user_home}/.etc/ruby_env"
+          "/home/#{new_resource.user}/.etc/ruby_env"
         end
 
     ::File.exist?(f) ? f : false
@@ -172,9 +174,8 @@ action :create do
       Environment:      'MALLOC_ARENA_MAX=2',
       RestartSec:       1,
       Restart:          'on-failure',
-      StandardOutput:   'syslog',
-      StandardError:    'syslog',
-      SyslogIdentifier: 'sidekiq',
+      StandardOutput:   'journal',
+      StandardError:    'journal',
     }
 
     if prop_env_file

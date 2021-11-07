@@ -2,35 +2,53 @@
 # Cookbook:: app_ror
 # Resource:: ruby
 #
-# Copyright:: 2021, Earth U
+# Copyright:: 2022, Earth U
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 unified_mode true
 
 property :version, String,
          description: 'Ruby version to install',
          name_property: true
+# From bundler 1, upgrade to specific bundler 2 version:
+#   gem install bundler:2.x.y
+# To update existing project with lockfile that used bundler 1:
+#   bundle _2.x.y_ update --bundler
+# or delete Gemfile.lock, then do:
+#   bundle _2.x.y_ install
 
 property :user, String,
          description: 'Main user for this installation',
          default: 'ubuntu'
 
-property :ruby_bin_path, String,
-         description: 'Location of Ruby installation binaries. '\
-                      'Defaults to: {prefix_path}/bin'
-
 property :gem_home, String,
-         description: 'Defaults to: /home/{user}/.gem/ruby/{version}'
+         description: 'Customize the string written to GEM_HOME. '\
+                      'Defaults to: /home/{user}/.gem/ruby/{version}.'
 
 property :gem_path, String,
-         description: 'Defaults to: {prefix_path}/lib/ruby/gems/{version}. '\
-                      'Actual resolved :gem_path includes the :gem_home. '\
-                      'The version suffix must be manually verified because '\
-                      'patch values in the version number does not actually '\
-                      'modify this suffix in practice.'
+         description: 'Customize the string written to GEM_PATH. '\
+                      'Defaults to: {prefix_path}/lib/ruby/gems/{minversion}, '\
+                      'where {minversion} is just like {version}, '\
+                      'but the patch number is always 0. '\
+                      'Actual resolved GEM_PATH includes the GEM_HOME. '\
 
 property :ruby_env, Hash,
          description: 'Additional environment variables for Ruby, if needed',
          default: {}
+
+property :etc_dir, String,
+         description: 'Defaults to: /home/{user}/.etc'
 
 property :export_ruby_env, [true, false],
          description: 'If true, Ruby environment variables (including '\
@@ -38,27 +56,10 @@ property :export_ruby_env, [true, false],
                       '{etc_dir}/ruby_env',
          default: true
 
-property :etc_dir, String,
-         description: 'Defaults to: /home/{user}/.etc'
-
-# Prepending the environment variables in .bashrc allows them to be
-# executed _before_ this section:
-#   case $- in
-#       *i*) ;;
-#         *) return;;
-#   esac
-# which causes the rest of the file to be bypassed when deploying with
-# Capistrano, due to the fact that Capistrano uses a non-interactive shell.
-property :bashrc_prepend_env, [true, false],
-         description: 'If true, env variable declarations will be prepended '\
-                      'at the beginning of ~/.bashrc, instead of appending '\
-                      'them. Might be useful for Capistrano shell-less '\
-                      'deployments.',
-         default: false,
-         deprecated: 'The property bashrc_prepend_env has been deprecated '\
-                     'and no longer does anything. Generated Ruby env '\
-                     'variables will now always be available to both '\
-                     'interactive and non-interactive shells.'
+property :default_env_path, String,
+         description: 'Default PATH value in /etc/environment',
+         default: '/usr/local/sbin:/usr/local/bin:'\
+                  '/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin'
 
 # Ubuntu 20.04 dependencies as per:
 # - https://github.com/rbenv/ruby-build/wiki#suggested-build-environment
@@ -83,18 +84,17 @@ property :apt_packages, Array,
          )
 
 property :install_nodejs, [true, false],
-         description: 'Whether to install NodeJS',
+         description: 'Whether to install NodeJS (see attributes file)',
          default: true
 
-# Yarn 1.x must be installed globally.
-# Migrating to >= 2.x is then on a per-project basis.
+# Yarn 1.x must be installed globally at first.
+# Switching to different versions per project (or directory) can be done with:
+#   yarn set version [version]
+# where [version] can be 'classic' (latest 1.x), 'berry' (latest stable 2.x),
+# 'canary' (latest candidate 2.x), or a specific version number.
 property :install_yarn, [true, false],
-         description: 'Whether to install Yarn',
+         description: 'Whether to install Yarn globally',
          default: true
-
-property :default_env_path, String,
-         description: 'Default PATH variable in /etc/environment',
-         default: '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
 
 # Wrapped properties from ruby_build cookbook:
 property :prefix_path, String,
@@ -102,53 +102,33 @@ property :prefix_path, String,
          default: '/usr/local/ruby'
 
 property :ruby_build_git_ref, String,
-         description: 'Git ref of ruby_build repo to download',
-         default: 'v20211019'
+         description: 'Git ref of github.com/rbenv/ruby-build repo to download',
+         default: 'v20221101'
 
 action_class do
   def user_home
     "/home/#{new_resource.user}"
   end
 
-  def prop_ruby_bin_path
-    if property_is_set?(:ruby_bin_path)
-      new_resource.ruby_bin_path
-    else
-      "#{new_resource.prefix_path}/bin"
-    end
-  end
-
-  def prop_gem_home
-    if property_is_set?(:gem_home)
-      new_resource.gem_home
-    else
-      "#{user_home}/.gem/ruby/#{new_resource.version}"
-    end
-  end
-
-  def prop_gem_path
-    if property_is_set?(:gem_path)
-      new_resource.gem_path
-    else
-      "#{new_resource.prefix_path}/lib/ruby/gems/#{new_resource.version}"
-    end
-  end
-
-  def resolved_gem_path
-    [prop_gem_home, prop_gem_path].uniq.join(':')
-  end
-
-  def resolved_ruby_env
-    {
-      'GEM_HOME' => prop_gem_home,
-      'GEM_PATH' => resolved_gem_path,
-    }.merge(new_resource.ruby_env)
-  end
-
   def resolved_env
+    gem_home = if property_is_set?(:gem_home)
+                 new_resource.gem_home
+               else
+                 "#{user_home}/.gem/ruby/#{new_resource.version}"
+               end
+
+    gem_path = if property_is_set?(:gem_path)
+                 new_resource.gem_path
+               else
+                 a = new_resource.version.split('.')
+                 "#{new_resource.prefix_path}/lib/ruby/gems/#{a[0]}.#{a[1]}.0"
+               end
+
     {
-      'PATH' => "#{prop_ruby_bin_path}:#{new_resource.default_env_path}",
-    }.merge(resolved_ruby_env)
+      'PATH'     => "#{new_resource.prefix_path}/bin:#{new_resource.default_env_path}",
+      'GEM_HOME' => gem_home,
+      'GEM_PATH' => [gem_home, gem_path].uniq.join(':'),
+    }.merge(new_resource.ruby_env)
   end
 
   def prop_etc_dir
@@ -197,14 +177,13 @@ action :install do
 
   ruby_block 'update_etc_env' do
     block do
-      open(etc_env, 'a') do |f|
+      open(etc_env, 'w') do |f|
         resolved_env.each do |k, v|
           f << "#{k}=#{v}\n"
         end
       end
     end
     only_if  { ::File.exist?(etc_env) }
-    not_if   { ::File.exist?(etc_env_mark) }
     notifies :create, "file[#{etc_env_mark}]", :immediately
   end
 

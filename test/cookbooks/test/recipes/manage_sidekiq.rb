@@ -1,9 +1,8 @@
 #
-# Author:: Earth U (<iskitingbords@gmail.com>)
-# Cookbook Name:: test
+# Cookbook:: test
 # Recipe:: manage_sidekiq
 #
-# Copyright (C) 2018, Earth U
+# Copyright:: 2022, Earth U
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,10 +15,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
 
-app_ror_manage_sidekiq node['test']['base_dir'] do
-  user node['test']['user']
-  workers node['test']['sidekiq_workers']
-  dependency node['test']['sidekiq_dependency']
+app_ror_redis 'redis'
+
+app_ror_manage_sidekiq "#{node['test']['base_dir']}/current" do
+  dependencies node['test']['sidekiq_dependencies']
 end

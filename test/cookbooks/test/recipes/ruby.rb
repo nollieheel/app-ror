@@ -1,9 +1,8 @@
 #
-# Author:: Earth U (<iskitingbords@gmail.com>)
-# Cookbook Name:: test
-# Recipe:: base_dirs
+# Cookbook:: test
+# Recipe:: ruby
 #
-# Copyright (C) 2018, Earth U
+# Copyright:: 2022, Earth U
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,10 +15,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
 
-app_ror_base_dirs node['test']['base_dir'] do
-  owner node['test']['user']
-  sub_dirs node['test']['sub_dirs']
+app_ror_ruby node['test']['ruby_ver'] do
+  ruby_env node['test']['ruby_env']
 end
-

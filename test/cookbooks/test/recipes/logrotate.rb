@@ -1,9 +1,8 @@
 #
-# Author:: Earth U (<iskitingbords@gmail.com>)
-# Cookbook Name:: test
-# Recipe:: swap
+# Cookbook:: test
+# Resource:: logrotate
 #
-# Copyright (C) 2018, Earth U
+# Copyright:: 2022, Earth U
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,8 +15,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
 
-app_ror_swap node['test']['swapfile'] do
-  size node['test']['swapsize']
+app_ror_logrotate 'test_logrotate' do
+  path "#{node['test']['base_dir']}/shared/log/*.log"
 end

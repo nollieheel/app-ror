@@ -5,22 +5,20 @@ driver:
 provisioner:
   name: chef_infra
   product_name: chef
-  product_version: 17.6
+  product_version: "18.0"
   chef_license: accept
 
 verifier:
   name: inspec
 
 platforms:
-  - name: ubuntu-20.04
+  # Ubuntu 20.04:
+  - name: focal
+  # Ubuntu 22.04:
+  - name: jammy
 
 suites:
   - name: default
     verifier:
       inspec_tests:
         - test/integration/default
-#  - name: test
-#    named_run_list: test
-#    verifier:
-#      inspec_tests:
-#        - test/integration/test

@@ -1,5 +1,20 @@
 # app_ror CHANGELOG
 
+## 3.2.0 - 2022-11-10
+### Changed
+- Updated dependency versions
+- /etc/environment should now be updated to match at every resource call
+- Changed default number of sidekiq processes from 1 to 2
+
+### Removed
+- Property 'ruby_bin_path' and 'bashrc_prepend_env' from resource 'app_ror_ruby'
+- Property 'base_dir' from resource 'app_ror_manage_puma'
+- Property 'base_dir' from resource 'app_ror_manage_sidekiq'
+
+### Added
+- Basic resource app_ror_redis or testing
+- Tests
+
 ## 3.1.0 - 2021-11-05
 ### Changed
 - Property 'bashrc_prepend_env' for resource 'app_ror_ruby' is now DEPRECATED.

@@ -2,7 +2,19 @@
 # Cookbook:: app_ror
 # Resource:: manage_puma
 #
-# Copyright:: 2021, Earth U
+# Copyright:: 2022, Earth U
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 unified_mode true
 
@@ -12,12 +24,9 @@ property :app_dir, String,
                       'E.g. /var/src/myapp/current',
          name_property: true
 
-property :base_dir, String,
-         description: 'Base directory of project. Gets used if :conf_file '\
-                      'is a relative path. Defaults to dirname of :app_dir.'
-
 property :conf_file, String,
-         description: 'Location of Puma config file',
+         description: 'Location of Puma config file. '\
+                      'Can be relative to dirname of :app_dir.',
          default: 'shared/puma.rb'
 
 # Systemd properties
@@ -36,31 +45,19 @@ property :unit_name, String,
          default: 'puma'
 
 action_class do
-  def prop_base_dir
-    if property_is_set?(:base_dir)
-      new_resource.base_dir
-    else
-      ::File.dirname(new_resource.app_dir)
-    end
-  end
-
   def prop_conf_file
     if new_resource.conf_file.start_with?('/')
       new_resource.conf_file
     else
-      "#{prop_base_dir}/#{new_resource.conf_file}"
+      "#{::File.dirname(new_resource.app_dir)}/#{new_resource.conf_file}"
     end
-  end
-
-  def user_home
-    "/home/#{new_resource.user}"
   end
 
   def prop_env_file
     f = if property_is_set?(:env_file)
           new_resource.env_file
         else
-          "#{user_home}/.etc/ruby_env"
+          "/home/#{new_resource.user}/.etc/ruby_env"
         end
 
     ::File.exist?(f) ? f : false
