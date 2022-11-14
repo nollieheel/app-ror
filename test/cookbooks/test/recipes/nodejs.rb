@@ -1,8 +1,8 @@
 #
-# Cookbook:: app_ror
-# Attribute:: default
+# Cookbook:: test
+# Recipe:: nodejs
 #
-# Copyright:: 2021, Earth U
+# Copyright:: 2023, Earth U
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,5 +16,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Valid NodeJS versions are LTS starting from 10: 10.x (EOL), 12.x, 14.x, 16.x
-default['nodejs']['repo'] = 'https://deb.nodesource.com/node_16.x'
+app_ror_nodejs node['test']['nodejs_ver']

@@ -2,7 +2,7 @@
 # Cookbook:: app_ror
 # Resource:: ruby
 #
-# Copyright:: 2022, Earth U
+# Copyright:: 2023, Earth U
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -83,19 +83,6 @@ property :apt_packages, Array,
            libcurl4-openssl-dev
          )
 
-property :install_nodejs, [true, false],
-         description: 'Whether to install NodeJS (see attributes file)',
-         default: true
-
-# Yarn 1.x must be installed globally at first.
-# Switching to different versions per project (or directory) can be done with:
-#   yarn set version [version]
-# where [version] can be 'classic' (latest 1.x), 'berry' (latest stable 2.x),
-# 'canary' (latest candidate 2.x), or a specific version number.
-property :install_yarn, [true, false],
-         description: 'Whether to install Yarn globally',
-         default: true
-
 # Wrapped properties from ruby_build cookbook:
 property :prefix_path, String,
          description: 'Location of the Ruby installation',
@@ -157,14 +144,6 @@ action :install do
 
   ruby_build_definition new_resource.version do
     prefix_path new_resource.prefix_path
-  end
-
-  if new_resource.install_nodejs
-    include_recipe 'nodejs'
-  end
-
-  if new_resource.install_yarn
-    include_recipe 'yarn'
   end
 
   directory prop_etc_dir do

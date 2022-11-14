@@ -16,6 +16,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+require 'pathname'
+
 unified_mode true
 
 # Project properties
@@ -46,7 +48,7 @@ property :unit_name, String,
 
 action_class do
   def prop_conf_file
-    if new_resource.conf_file.start_with?('/')
+    if Pathname.new(new_resource.conf_file).absolute?
       new_resource.conf_file
     else
       "#{::File.dirname(new_resource.app_dir)}/#{new_resource.conf_file}"

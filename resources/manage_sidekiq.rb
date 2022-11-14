@@ -16,11 +16,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+require 'pathname'
+
 unified_mode true
 
 # Sidekiq systemd config taken from:
 # https://github.com/mperham/sidekiq/blob/v5.2.9/examples/systemd/sidekiq.service
-# https://github.com/mperham/sidekiq/blob/v6.2.2/examples/systemd/sidekiq.service
+# https://github.com/mperham/sidekiq/blob/v6.5.8/examples/systemd/sidekiq.service
 
 # Project properties
 property :app_dir, String,
@@ -28,30 +30,52 @@ property :app_dir, String,
                       'E.g. /var/src/myapp/current',
          name_property: true
 
-property :conf_file, String,
-         description: 'Location of Sidekiq config file.'\
+property :environment, String,
+         description: 'Sidekiq environment name',
+         default: 'production'
+
+property :conf_file, [String, false],
+         description: 'Location of Sidekiq config file. '\
+                      'If false, --config/-C will not be passed to '\
+                      'the sidekiq binary. '\
                       'Can be relative to dirname of :app_dir.',
          default: 'current/config/sidekiq.yml'
 
 property :log_dir, [String, false],
          description: 'Location of logs as passed to the Sidekiq binary. '\
-                      'If passing a --logfile parameter to the binary is '\
-                      'not desired, set this property to false. '\
+                      'If false, --logfile/-L will not be passed to '\
+                      'the sidekiq binary. '\
                       'Can be relative to dirname of :app_dir.',
          default: 'shared/log'
 
 property :pidfile_dir, [String, false],
          description: 'Location of pidfile as passed to the Sidekiq binary. '\
-                      'If passing a --pidfile parameter to the binary is '\
-                      'not desired, set this property to false. '\
+                      'If false, --pidfile/-P will not be passed to '\
+                      'the sidekiq binary. '\
                       'Can be relative to dirname of :app_dir.',
          default: 'shared/tmp/pids'
 
-property :environment, String,
-         description: 'Sidekiq environment name',
-         default: 'production'
-
 # Systemd properties
+#
+# NOTE: In >=6.0.6, it might be better not to explicitly pass
+#       --config, --logfile, or --pidfile to sidekiq binary.
+#       Service type can now also be set to 'notify', which in turn,
+#       enables the WatchdogSec option.
+property :unit_type, %w(simple notify),
+         description: 'Systemd unit type',
+         default: 'simple'
+
+property :watchdogsec, Integer,
+         description: 'Number of seconds for WatchdogSec. '\
+                      'Only useful if :unit_type is notify.',
+         callbacks: { 'must be a positive int' => ->(p) { p > 0 } },
+         default: 10
+
+property :unit_name, String,
+         description: 'Name of the systemd unit. Will be suffixed '\
+                      'by processes number.',
+         default: 'sidekiq-'
+
 property :user, String,
          description: 'User that will run the Sidekiq process',
          default: 'ubuntu'
@@ -65,6 +89,11 @@ property :env_file, String,
                       'file exists. Otherwise, no EnvironmentFile will be '\
                       'passed to systemd.'
 
+property :dependencies, [String, Array],
+         description: 'Additional systemd dependencies, if needed '\
+                      '(e.g. redis-server.service)',
+         default: []
+
 property :processes, Integer,
          description: 'Number of systemd processes to run. The first process '\
                       'will be called sidekiq-1.service. The second is '\
@@ -72,19 +101,9 @@ property :processes, Integer,
          callbacks: { 'must be a positive int' => ->(p) { p > 0 } },
          default: 2
 
-property :unit_name, String,
-         description: 'Name of the systemd unit. Will be suffixed '\
-                      'by processes number.',
-         default: 'sidekiq-'
-
-property :dependencies, [String, Array],
-         description: 'Additional systemd dependencies, if needed '\
-                      '(e.g. redis-server.service)',
-         default: []
-
 action_class do
   def abs_path(path)
-    if path.start_with?('/')
+    if Pathname.new(path).absolute?
       path
     else
       "#{::File.dirname(new_resource.app_dir)}/#{path}"
@@ -92,14 +111,18 @@ action_class do
   end
 
   def prop_conf_file
-    abs_path(new_resource.conf_file)
+    if new_resource.conf_file.is_a?(String)
+      abs_path(new_resource.conf_file)
+    else
+      false
+    end
   end
 
   def prop_log_dir
     if new_resource.log_dir.is_a?(String)
       abs_path(new_resource.log_dir)
     else
-      new_resource.log_dir
+      false
     end
   end
 
@@ -107,7 +130,7 @@ action_class do
     if new_resource.pidfile_dir.is_a?(String)
       abs_path(new_resource.pidfile_dir)
     else
-      new_resource.pidfile_dir
+      false
     end
   end
 
@@ -139,19 +162,21 @@ action :create do
     aft << ' ' << prop_dependencies.join(' ')
   end
 
-  execstart = "/bin/bash -lc 'bundle exec sidekiq "\
-    "--environment #{new_resource.environment} "\
-    "--config #{prop_conf_file}"
+  exstart = "/bin/bash -lc 'bundle exec sidekiq "\
+              "--environment #{new_resource.environment}"
   formatargs = 0
+  if prop_conf_file
+    exstart << " --config #{prop_conf_file}"
+  end
   if prop_pidfile_dir
-    execstart << " --pidfile #{prop_pidfile_dir}/#{new_resource.unit_name}%i.pid"
+    exstart << " --pidfile #{prop_pidfile_dir}/#{new_resource.unit_name}%i.pid"
     formatargs += 1
   end
   if prop_log_dir
-    execstart << " --logfile #{prop_log_dir}/#{new_resource.unit_name}%i.log"
+    exstart << " --logfile #{prop_log_dir}/#{new_resource.unit_name}%i.log"
     formatargs += 1
   end
-  execstart << "'"
+  exstart << "'"
 
   ins = { WantedBy: 'multi-user.target' }
 
@@ -165,18 +190,22 @@ action :create do
     formatargs.times { ps << (p + 1) }
 
     service = {
-      Type:             'simple',
+      Type:             new_resource.unit_type,
       User:             new_resource.user,
       Group:            prop_group,
       UMask:            '0002',
       WorkingDirectory: new_resource.app_dir,
-      ExecStart:        execstart % ps,
+      ExecStart:        exstart % ps,
       Environment:      'MALLOC_ARENA_MAX=2',
       RestartSec:       1,
-      Restart:          'on-failure',
+      Restart:          'always',
       StandardOutput:   'journal',
       StandardError:    'journal',
     }
+
+    if new_resource.unit_type == 'notify'
+      service[:WatchdogSec] = new_resource.watchdogsec
+    end
 
     if prop_env_file
       service[:EnvironmentFile] = prop_env_file

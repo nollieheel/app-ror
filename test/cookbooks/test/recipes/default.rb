@@ -2,7 +2,7 @@
 # Cookbook:: test
 # Recipe:: default
 #
-# Copyright:: 2022, Earth U
+# Copyright:: 2023, Earth U
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,13 +16,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# include_recipe 'test::swap'
 app_ror_base_dirs node['test']['base_dir'] do
   sub_dirs node['test']['sub_dirs']
 end
 
 include_recipe 'test::ruby'
+include_recipe 'test::nodejs'
 include_recipe 'test::manage_puma'
 include_recipe 'test::manage_sidekiq'
 include_recipe 'test::logrotate'
-# include_recipe 'test::solr'

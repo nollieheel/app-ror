@@ -22,6 +22,7 @@
 # Package name is 'redis-server' and service name is 'redis-server.service'.
 
 cb = 'app_ror'
+
 unified_mode true
 
 property :install_method, ['default_package'],

@@ -3,9 +3,9 @@ describe command('/usr/local/ruby/bin/ruby --version') do
   its('stdout') { should match /2\.6\.10/ }
 end
 
-# (2022-11-04) Latest from cookbook default Node 16.x
+# Installed version from test cookbook
 describe command('node --version') do
-  its('stdout') { should match /16\.18\./ }
+  its('stdout') { should match /16\.[0-9]{1,3}\.[0-9]{1,3}/ }
 end
 
 # Expected version that comes with Ruby 2.6.10

@@ -2,7 +2,7 @@
 # Cookbook:: test
 # Attribute:: default
 #
-# Copyright:: 2022, Earth U
+# Copyright:: 2023, Earth U
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,5 +26,7 @@ default['test']['sub_dirs'] = %w(
 
 default['test']['ruby_ver'] = '2.6.10'
 default['test']['ruby_env'] = { 'TEST_RUBY_VAR' => 'foobar' }
+
+default['test']['nodejs_ver'] = 'node_16.x'
 
 default['test']['sidekiq_dependencies'] = 'redis-server.service'

@@ -85,13 +85,29 @@ end
 - `etc_dir` - Default: `/home/{user}/.etc`
 - `export_ruby_env` - If true, values for the environment variables, such as `PATH`, `GEM_HOME`, and `GEM_PATH` will be exported into a file located at `{etc_dir}/ruby_env`. Useful for automating user-specific Ruby commands. Default: true.
 - `apt_packages` - Dependent OS packages for Ruby. Check resource file for defaults.
-- `install_yarn` - Whether to include installation of Yarn. Default: true.
-- `install_nodejs` - Whether to include installation of NodeJS. Default: true.
 
 #### Properties Wrapped From [Poise-Ruby-Build](https://github.com/poise/poise-ruby-build) Cookbook
 
 - `prefix_path` - Installation location. Default: `/usr/local/ruby`.
 - `ruby_build_git_ref` - Git ref of ruby-build to use. Default: `v20221101`.
+
+### app_ror_nodejs
+
+Install NodeJS as per this [guide](https://github.com/nodesource/distributions#manual-installation).
+
+```ruby
+app_ror_nodejs 'node_16.x'
+```
+
+#### Actions
+
+- `install` - Install NodeJS
+
+#### Properties
+
+- `version` - Only accepts LTS version (`node_16.x`, `node_18.x`, etc.). Defaults to name of resource.
+- `install_repo` - Set to `false` if installing from the built-in OS repo. Default: `true`.
+- `install_yarn` - Whether to include installation of Yarn. Default: true.
 
 ### app_ror_manage_puma
 
@@ -117,7 +133,7 @@ end
 
 ### app_ror_manage_sidekiq
 
-Set up Sidekiq systemd unit/s, taken from this [guide](https://github.com/mperham/sidekiq/blob/v6.2.2/examples/systemd/sidekiq.service).
+Set up Sidekiq systemd unit/s, taken from this [guide](https://github.com/mperham/sidekiq/blob/v6.5.8/examples/systemd/sidekiq.service).
 
 ```ruby
 app_ror_manage_sidekiq '/var/src/myapp/current' do
@@ -134,9 +150,9 @@ end
 #### Properties
 
 - `app_dir` - Root path of Rails app. Defaults to name of resource.
-- `log_dir` - Directory where Sidekiq logs are to be stored. Can be relative to dirname of `app_dir`. Default: `shared/log`.
-- `pidfile_dir` - Directory where Sidekiq writes the pidfile. Can be relative to dirname of `app_dir`. Default: `shared/tmp/pids`.
-- `conf_file` - Location of Sidekiq config file. Can be relative to dirname of `app_dir`. Default: `current/config/sidekiq.yml`.
+- `log_dir` - Directory where Sidekiq logs are to be stored. Can be false or relative to dirname of `app_dir`. Default: `shared/log`.
+- `pidfile_dir` - Directory where Sidekiq writes the pidfile. Can be false or relative to dirname of `app_dir`. Default: `shared/tmp/pids`.
+- `conf_file` - Location of Sidekiq config file. Can be false or relative to dirname of `app_dir`. Default: `current/config/sidekiq.yml`.
 - `environment` - Sidekiq Ruby environment. Default: `production`.
 - `user` - User to run Sidekiq. Default: `ubuntu`.
 - `group` - Group name of user. Defaults to value of :user.
@@ -144,6 +160,8 @@ end
 - `processes` - Number of Sidekiq systemd processes to run. Default: `2`.
 - `dependencies` - Additional systemd dependencies. E.g. `redis-server.service`. Default: `[]`.
 - `unit_name` - Unit name prefix. Default: `sidekiq-`.
+- `unit_type` - Systemd unit type. Either 'simple' or 'notify'. Default: `simple`.
+- `watchdogsec` - Number of seconds for systemd watchdog (if type notify). Default: 10.
 
 ## License and Authors
 

@@ -1,5 +1,16 @@
 # app_ror CHANGELOG
 
+## 4.0.0 - 2023-04-19
+### Breaking changes
+- Removed dependency from nodejs cookbook
+- NodeJS and Yarn are now a separate resource `app_ror_nodejs`
+
+### Changed 
+- :conf_file property of manage_sidekiq resource can now be turned off
+
+### Added
+- :unit_type and :watchdogsec properties to manage_sidekiq resource
+
 ## 3.2.0 - 2022-11-10
 ### Changed
 - Updated dependency versions
@@ -12,7 +23,7 @@
 - Property 'base_dir' from resource 'app_ror_manage_sidekiq'
 
 ### Added
-- Basic resource app_ror_redis or testing
+- Basic resource app_ror_redis for testing
 - Tests
 
 ## 3.1.0 - 2021-11-05
