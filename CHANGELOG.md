@@ -1,5 +1,9 @@
 # app_ror CHANGELOG
 
+## 4.1.0 - 2023-04-23
+### Added
+- New resource app_ror_gem to install Ruby gems
+
 ## 4.0.0 - 2023-04-19
 ### Breaking changes
 - Removed dependency from nodejs cookbook

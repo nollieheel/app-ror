@@ -19,3 +19,7 @@
 app_ror_ruby node['test']['ruby_ver'] do
   ruby_env node['test']['ruby_env']
 end
+
+app_ror_gem 'bundler' do
+  version node['test']['bundler_ver']
+end

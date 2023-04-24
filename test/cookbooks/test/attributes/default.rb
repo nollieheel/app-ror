@@ -27,6 +27,8 @@ default['test']['sub_dirs'] = %w(
 default['test']['ruby_ver'] = '2.6.10'
 default['test']['ruby_env'] = { 'TEST_RUBY_VAR' => 'foobar' }
 
+default['test']['bundler_ver'] = '2.2.29'
+
 default['test']['nodejs_ver'] = 'node_16.x'
 
 default['test']['sidekiq_dependencies'] = 'redis-server.service'

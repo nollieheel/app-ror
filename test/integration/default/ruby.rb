@@ -28,3 +28,12 @@ describe file('/home/ubuntu/.etc/ruby_env') do
   its('content') { should match /GEM_PATH/ }
   its('content') { should match /TEST_RUBY_VAR/ }
 end
+
+# Expected version from test cookbook
+s = ''
+file('/home/ubuntu/.etc/ruby_env').content.lines.each do |l|
+  s << "#{l.strip} "
+end
+describe command("#{s}/usr/local/ruby/bin/bundle --version") do
+  its('stdout') { should match /2\.2\.29/ }
+end

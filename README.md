@@ -91,6 +91,28 @@ end
 - `prefix_path` - Installation location. Default: `/usr/local/ruby`.
 - `ruby_build_git_ref` - Git ref of ruby-build to use. Default: `v20221101`.
 
+### app_ror_gem
+
+Install a Ruby gem.
+
+```ruby
+app_ror_gem 'bundler' do
+  version '2.2.29'
+end
+```
+
+#### Actions
+
+- `install` - Install the gem (default)
+
+#### Properties
+
+- `name` - Gem name. Defaults to name of resource.
+- `version` - Gem version if desired.
+- `user` - User for this installation. Default: `ubuntu`.
+- `ruby_env_file` - File containing env variables to include in the gem install command. Default: `/home/{user}/.etc/ruby_env`.
+- `ruby_env` - Additional Ruby environment variables. Default: `{}`.
+
 ### app_ror_nodejs
 
 Install NodeJS as per this [guide](https://github.com/nodesource/distributions#manual-installation).
