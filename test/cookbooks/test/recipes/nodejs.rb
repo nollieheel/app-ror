@@ -2,7 +2,7 @@
 # Cookbook:: test
 # Recipe:: nodejs
 #
-# Copyright:: 2023, Earth U
+# Copyright:: 2024, Earth U
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,4 +16,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-app_ror_nodejs node['test']['nodejs_ver']
+app_ror_nodejs node['test']['nodejs_ver'] do
+  yarn_version node['test']['yarn_ver']
+end

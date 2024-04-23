@@ -2,7 +2,7 @@
 # Cookbook:: app_ror
 # Resource:: base_dirs
 #
-# Copyright:: 2022, Earth U
+# Copyright:: 2024, Earth U
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -34,15 +34,13 @@ property :group, String,
          description: 'Directory group. Defaults to name of :owner.'
 
 action_class do
-  def prop_group
-    property_is_set?(:group) ? new_resource.group : new_resource.owner
-  end
-
   def create_dir(loc)
+    grp = property_is_set?(:group) ? new_resource.group : new_resource.owner
+
     directory loc do
       recursive true
       owner     new_resource.owner
-      group     prop_group
+      group     grp
     end
   end
 end

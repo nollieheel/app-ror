@@ -4,7 +4,7 @@ Some cookbook resources to ease setup of Ruby-on-Rails apps.
 
 ## Supported Platforms
 
-LTS version of Ubuntu >= 20.04
+LTS version of Ubuntu >= 22.04
 
 ## Resources
 
@@ -89,7 +89,7 @@ end
 #### Properties Wrapped From [Poise-Ruby-Build](https://github.com/poise/poise-ruby-build) Cookbook
 
 - `prefix_path` - Installation location. Default: `/usr/local/ruby`.
-- `ruby_build_git_ref` - Git ref of ruby-build to use. Default: `v20221101`.
+- `ruby_build_git_ref` - Git ref of ruby-build to use. Default: `v20240416`.
 
 ### app_ror_gem
 
@@ -115,7 +115,8 @@ end
 
 ### app_ror_nodejs
 
-Install NodeJS as per this [guide](https://github.com/nodesource/distributions#manual-installation).
+Install NodeJS as per this [guide](https://github.com/nodesource/distributions/wiki/Repository-Manual-Installation).
+Install Yarn as per this [guide](https://yarnpkg.com/getting-started/install).
 
 ```ruby
 app_ror_nodejs 'node_16.x'
@@ -128,8 +129,9 @@ app_ror_nodejs 'node_16.x'
 #### Properties
 
 - `version` - Only accepts LTS version (`node_16.x`, `node_18.x`, etc.). Defaults to name of resource.
-- `install_repo` - Set to `false` if installing from the built-in OS repo. Default: `true`.
 - `install_yarn` - Whether to include installation of Yarn. Default: true.
+- `yarn_version` - Defaults to `latest`, which installs the latest possible version of Yarn at the current NodeJS version. Can also be set to `stable` for NodeJS >= 18.x.
+- `yarn_user` - User for yarn instance. Default: `ubuntu`.
 
 ### app_ror_manage_puma
 
@@ -152,6 +154,8 @@ end
 - `user` - User to run Puma. Default: `ubuntu`.
 - `env_file` - File containing OS env variables needed for Puma to run. Useful if not using Ruby management tools (rbenv, chruby, etc.). Default: `/home/{user}/.etc/ruby_env`.
 - `unit_name` - Default: `puma`.
+- `unit_type` - Systemd unit type. Either 'simple' or 'notify' (for versions >=5.1). Default: `simple`.
+- `watchdogsec` - Number of seconds for systemd watchdog (if type notify). Default: 10.
 
 ### app_ror_manage_sidekiq
 
@@ -182,7 +186,7 @@ end
 - `processes` - Number of Sidekiq systemd processes to run. Default: `2`.
 - `dependencies` - Additional systemd dependencies. E.g. `redis-server.service`. Default: `[]`.
 - `unit_name` - Unit name prefix. Default: `sidekiq-`.
-- `unit_type` - Systemd unit type. Either 'simple' or 'notify'. Default: `simple`.
+- `unit_type` - Systemd unit type. Either 'simple' or 'notify' (for versions >=6.0.6). Default: `simple`.
 - `watchdogsec` - Number of seconds for systemd watchdog (if type notify). Default: 10.
 
 ## License and Authors

@@ -2,7 +2,7 @@
 # Cookbook:: app_ror
 # Resource:: manage_puma
 #
-# Copyright:: 2022, Earth U
+# Copyright:: 2024, Earth U
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -32,6 +32,21 @@ property :conf_file, String,
          default: 'shared/puma.rb'
 
 # Systemd properties
+property :unit_type, %w(simple notify),
+         description: 'Using unit type `notify` and watchdog service '\
+                      'monitoring is only available for Puma version >=5.1',
+         default: 'simple'
+
+property :watchdogsec, Integer,
+         description: 'Number of seconds for WatchdogSec. '\
+                      'Only useful if :unit_type is notify.',
+         callbacks: { 'must be a positive int' => ->(p) { p > 0 } },
+         default: 10
+
+property :unit_name, String,
+         description: 'Name of the systemd unit',
+         default: 'puma'
+
 property :user, String,
          description: 'User that will run the Puma process',
          default: 'ubuntu'
@@ -41,10 +56,6 @@ property :env_file, String,
                       'unit. Defaults to: /home/{user}/.etc/ruby_env if that '\
                       'file exists. Otherwise, no EnvironmentFile will be '\
                       'passed to systemd.'
-
-property :unit_name, String,
-         description: 'Name of the systemd unit',
-         default: 'puma'
 
 action_class do
   def prop_conf_file
@@ -71,12 +82,16 @@ action :create do
               "puma -C #{prop_conf_file}'"
 
   service = {
-    Type:             'simple',
+    Type:             new_resource.unit_type,
     User:             new_resource.user,
     WorkingDirectory: new_resource.app_dir,
     Restart:          'always',
     ExecStart:        execstart,
   }
+
+  if new_resource.unit_type == 'notify'
+    service[:WatchdogSec] = new_resource.watchdogsec
+  end
 
   if prop_env_file
     service[:EnvironmentFile] = prop_env_file

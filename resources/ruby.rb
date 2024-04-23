@@ -2,7 +2,7 @@
 # Cookbook:: app_ror
 # Resource:: ruby
 #
-# Copyright:: 2023, Earth U
+# Copyright:: 2024, Earth U
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ property :gem_path, String,
                       'Defaults to: {prefix_path}/lib/ruby/gems/{minversion}, '\
                       'where {minversion} is just like {version}, '\
                       'but the patch number is always 0. '\
-                      'Actual resolved GEM_PATH includes the GEM_HOME. '\
+                      'Actual resolved GEM_PATH includes the GEM_HOME. '
 
 property :ruby_env, Hash,
          description: 'Additional environment variables for Ruby, if needed',
@@ -61,26 +61,32 @@ property :default_env_path, String,
          default: '/usr/local/sbin:/usr/local/bin:'\
                   '/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin'
 
-# Ubuntu 20.04 dependencies as per:
+# Ubuntu 22.04 dependencies as per:
 # - https://github.com/rbenv/ruby-build/wiki#suggested-build-environment
-# - https://gorails.com/setup/ubuntu/20.04
+# - https://gorails.com/setup/ubuntu/22.04
 property :apt_packages, Array,
          description: 'Apt packages to install',
          default: %w(
-           autoconf
-           bison
-           libssl-dev
-           libyaml-dev
-           libreadline-dev
-           libncurses5-dev
-           libffi-dev
-           libgdbm6
-           libgdbm-dev
-           libdb-dev
            zlib1g-dev
+           libssl-dev
+           libreadline-dev
+           libyaml-dev
+           libsqlite3-dev
+           sqlite3
            libxml2-dev
            libxslt1-dev
            libcurl4-openssl-dev
+           libffi-dev
+           autoconf
+           patch
+           rustc
+           libreadline6-dev
+           libgmp-dev
+           libncurses5-dev
+           libgdbm6
+           libgdbm-dev
+           libdb-dev
+           uuid-dev
          )
 
 # Wrapped properties from ruby_build cookbook:
@@ -90,7 +96,7 @@ property :prefix_path, String,
 
 property :ruby_build_git_ref, String,
          description: 'Git ref of github.com/rbenv/ruby-build repo to download',
-         default: 'v20221101'
+         default: 'v20240416'
 
 action_class do
   def user_home
@@ -124,8 +130,10 @@ action_class do
 end
 
 action :install do
-  apt_repository 'git' do
-    uri 'ppa:git-core/ppa'
+  add_apt 'git' do
+    key        'E1DD270288B4E6030699E45FA1715D88E1DF1F24'
+    uri        'https://ppa.launchpadcontent.net/git-core/ppa/ubuntu'
+    components ['main']
   end
 
   build_essential
@@ -136,7 +144,9 @@ action :install do
     end
   end
 
-  git_client 'git'
+  git_client 'git' do
+    package_action :upgrade
+  end
 
   ruby_build_install 'ruby_build' do
     git_ref new_resource.ruby_build_git_ref

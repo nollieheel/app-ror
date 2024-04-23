@@ -2,7 +2,7 @@
 # Cookbook:: app_ror
 # Resource:: gem
 #
-# Copyright:: 2023, Earth U
+# Copyright:: 2024, Earth U
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -65,7 +65,7 @@ action :install do
       renv = {}
 
       ::File.foreach(prop_ruby_env_file) do |li|
-        s = li.split("=", 2).map(&:strip)
+        s = li.split('=', 2).map(&:strip)
         renv[s[0]] = s[1]
       end
 

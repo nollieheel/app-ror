@@ -15,3 +15,4 @@ run_list 'test::default'
 # Specify a custom source for a single cookbook:
 cookbook 'app_ror', path: '.'
 cookbook 'test', path: 'test/cookbooks/test'
+cookbook 'app_add_apt', git: 'https://github.com/nollieheel/app_add_apt.git', tag: 'v1.0.0'

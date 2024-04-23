@@ -8,9 +8,9 @@ describe command('node --version') do
   its('stdout') { should match /16\.[0-9]{1,3}\.[0-9]{1,3}/ }
 end
 
-# Expected version that comes with Ruby 2.6.10
+# Expected latest version for NodeJS 16.x
 describe command('yarn --version') do
-  its('stdout') { should match /1\.22\.19/ }
+  its('stdout') { should match /3\.8\.2/ }
 end
 
 describe command('which git') do

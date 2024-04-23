@@ -1,5 +1,22 @@
 # app_ror CHANGELOG
 
+## 5.0.0 - 2024-05-09
+### Breaking changes
+- Remove support for Ubuntu 20.04
+- NodeJS always uses nodesource repo except for version 12.x
+
+### Added
+- Use 'notify' unit type for Puma service
+- Yarn version can now be set via cookbook, although choices are limited by NodeJS version
+
+### Changed
+- Updated Chef Infra client version
+- Update the ruby_build ref for ruby resource
+- Updated the repo install method for Ubuntu repos
+
+### Removed
+- Dependencies to yarn cookbook
+
 ## 4.1.0 - 2023-04-23
 ### Added
 - New resource app_ror_gem to install Ruby gems
