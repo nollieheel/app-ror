@@ -1,3 +1,3 @@
 describe file('/etc/logrotate.d/test_logrotate') do
-  its('sha256sum') { should eq 'c986873c1fa0c50ef1785f17e5f19b8761d526ffe7781d76b530c009a9c6d248' }
+  its('sha256sum') { should eq '5060143926057300ab5427765e620c5b78627148092341d9d9cb38144b9bddcd' }
 end

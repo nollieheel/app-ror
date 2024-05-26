@@ -1,5 +1,9 @@
 # app_ror CHANGELOG
 
+## 5.0.1 - 2024-05-27
+### Added
+- Add su directive to logrotate conf (user: ubuntu, group: ubuntu)
+
 ## 5.0.0 - 2024-05-09
 ### Breaking changes
 - Remove support for Ubuntu 20.04

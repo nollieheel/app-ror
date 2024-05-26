@@ -5,7 +5,7 @@ license          'Apache-2.0'
 description      'Wrapper cookbook for setting up Ruby on Rails apps'
 source_url       'https://github.com/nollieheel/app-ror'
 issues_url       'https://github.com/nollieheel/app-ror/issues'
-version          '5.0.0'
+version          '5.0.1'
 
 depends 'app_add_apt', '~> 1.0.0'
 depends 'git',         '~> 12.1.3'

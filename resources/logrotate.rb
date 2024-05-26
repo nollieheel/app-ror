@@ -2,7 +2,7 @@
 # Cookbook:: app_ror
 # Resource:: logrotate
 #
-# Copyright:: 2022, Earth U
+# Copyright:: 2024, Earth U
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ property :path, [String, Array],
 property :config, Array,
          description: 'Logrotate settings for this config',
          default: [
+           'su ubuntu ubuntu',
            'weekly',
            'missingok',
            'rotate 12',
